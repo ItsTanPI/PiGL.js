@@ -1,4 +1,4 @@
-import { Mesh } from './Mesh.js';
+import { Mesh } from '../Rendering/Mesh.js';
 
 export class ObjLoader {
     static async load(gl, url) {
