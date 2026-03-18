@@ -24,21 +24,38 @@ export class Shader {
         return this.uniforms[name];
     }
 
-    setUniform(name, value) {
+    setUniform(name, value, type) {
         const gl = this.gl;
         const loc = this.getUniformLocation(name);
-        if (!loc) return;
+        if (!loc) return; // Uniform not found or optimized out
+
+        if (type) {
+            if (type === '1i') {
+                 gl.uniform1i(loc, value);
+            } else if (type === '1f') {
+                 gl.uniform1f(loc, value);
+            } else if (type === '2fv') {
+                 gl.uniform2fv(loc, value);
+            } else if (type === '3fv') {
+                 gl.uniform3fv(loc, value);
+            } else if (type === '4fv') {
+                 gl.uniform4fv(loc, value);
+            } else if (type === 'Matrix4fv') {
+                 gl.uniformMatrix4fv(loc, false, value);
+            }
+            return;
+        }
 
         if (typeof value === 'number') {
             gl.uniform1f(loc, value);
-        } else if (value.length === 2) {
-            gl.uniform2fv(loc, value);
-        } else if (value.length === 3) {
-            gl.uniform3fv(loc, value);
-        } else if (value.length === 4) {
-            gl.uniform4fv(loc, value);
-        } else if (value.length === 16) {
-            gl.uniformMatrix4fv(loc, false, value);
+        } else if (Array.isArray(value) || value instanceof Float32Array) {
+            switch (value.length) {
+                case 2: gl.uniform2fv(loc, value); break;
+                case 3: gl.uniform3fv(loc, value); break;
+                case 4: gl.uniform4fv(loc, value); break;
+                case 16: gl.uniformMatrix4fv(loc, false, value); break;
+                default: console.warn(`Unsupported uniform array length: ${value.length} for ${name}`);
+            }
         }
     }
 

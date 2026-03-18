@@ -1,27 +1,78 @@
+import { Mesh } from './Mesh.js';
+
 export class Renderer {
     constructor(gl) {
         this.gl = gl;
         
         // Define a unit Quad (Triangle Strip) suitable for Sprite rendering
-        // [X, Y,  U, V]
-        const vertices = new Float32Array([
-            -0.5,  0.5, 0.0, 1.0,  // top left
-            -0.5, -0.5, 0.0, 0.0,  // bottom left
-             0.5,  0.5, 1.0, 1.0,  // top right
-             0.5, -0.5, 1.0, 0.0,  // bottom right
+        // converted to separate arrays for Mesh class compatibility
+        const positions = new Float32Array([
+            -0.5,  0.5, 0.0,
+            -0.5, -0.5, 0.0,
+             0.5,  0.5, 0.0,
+             0.5, -0.5, 0.0,
         ]);
 
-        this.buffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+        const uvs = new Float32Array([
+            0.0, 1.0,
+            0.0, 0.0,
+            1.0, 1.0,
+            1.0, 0.0,
+        ]);
+        
+        const normals = new Float32Array([
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0,
+        ]);
+
+        // Mesh expects TRIANGLES by default, but our quad data is STRIP layout.
+        // However, Mesh.draw uses TRIANGLES if no indices.
+        // We need to either use indices for two triangles, or change Mesh to support STRIP, 
+        // OR redefine Quad as two triangles (6 verts).
+        
+        // Let's redefine Quad as two triangles (6 verts) to match OBJ loader style (TRIANGLES)
+        // Standard Quad:
+        // TL, BL, TR
+        // TR, BL, BR
+        const quadPos = new Float32Array([
+            -0.5,  0.5, 0.0,
+            -0.5, -0.5, 0.0,
+             0.5,  0.5, 0.0,
+             0.5,  0.5, 0.0,
+            -0.5, -0.5, 0.0,
+             0.5, -0.5, 0.0
+        ]);
+        const quadUV = new Float32Array([
+            0.0, 1.0,
+            0.0, 0.0,
+            1.0, 1.0,
+            1.0, 1.0,
+            0.0, 0.0,
+            1.0, 0.0
+        ]);
+        const quadNorm = new Float32Array([
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0
+        ]);
+
+        this.defaultMesh = new Mesh(gl, quadPos, quadUV, quadNorm);
     }
 
-    draw(gameObject, camera, target = undefined) {
-        const material = gameObject.material;
-        if (!material || !material.shader) return;
-
-        const gl = this.gl;
+    draw(gameObject, camera, target = undefined, material = null) {
+        // If material is passed explicitly, use it. Otherwise use gameObject.material
+        const matToUse = material || gameObject.material;
         
+        if (!matToUse || !matToUse.shader) return;
+        
+        const gl = this.gl;
+        const mesh = gameObject.mesh || this.defaultMesh;
+
         // Handle render target if specified
         if (target !== undefined) {
              if (target) {
@@ -33,24 +84,11 @@ export class Renderer {
              }
         }
 
-        const shader = material.shader;
+        const shader = matToUse.shader;
         shader.use();
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
-
-        const aPos = shader.getAttribLocation('aVertexPosition');
-        if (aPos !== -1) {
-            gl.enableVertexAttribArray(aPos);
-            // 2 components (x, y), stride of 16 bytes (4 floats of 4 bytes), offset 0
-            gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 16, 0); 
-        }
-
-        const aTex = shader.getAttribLocation('aTexCoord');
-        if (aTex !== -1) {
-            gl.enableVertexAttribArray(aTex);
-            // 2 components (u, v), stride 16, offset 8
-            gl.vertexAttribPointer(aTex, 2, gl.FLOAT, false, 16, 8); 
-        }
+        // Bind Mesh Buffers & Attributes
+        mesh.bind(shader);
 
         // Setup Standard Uniforms
         shader.setUniform('uProjectionMatrix', camera.projectionMatrix);
@@ -58,12 +96,33 @@ export class Renderer {
         shader.setUniform('uModelMatrix', gameObject.transform.worldMatrix);
 
         // Setup Material Uniforms
-        for (const name in material.uniforms) {
-            const u = material.uniforms[name];
-            shader.setUniform(name, u.value);
+        let textureUnit = 0;
+
+        for (const name in matToUse.uniforms) {
+            const u = matToUse.uniforms[name];
+            let valueToSend = u.value;
+            let typeToSend = u.type;
+
+            // Handle Textures
+            // Check if value is WebGLTexture OR if explicit type is '1i' (sampler)
+            if (valueToSend instanceof WebGLTexture || (typeToSend === '1i' && valueToSend && typeof valueToSend === 'object')) {
+                 gl.activeTexture(gl.TEXTURE0 + textureUnit);
+                 gl.bindTexture(gl.TEXTURE_2D, valueToSend);
+                 
+                 // If the texture was bound successfully, logic for unit
+                 if (gl.isTexture(valueToSend) || valueToSend instanceof WebGLTexture) {
+                    valueToSend = textureUnit;
+                    typeToSend = '1i'; // Ensure type is correct for sampler
+                    textureUnit++;
+                 }
+            }
+
+            // If we have an explicit type from Material, use it
+            // Renderer passes type to Shader.setUniform
+            shader.setUniform(name, valueToSend, typeToSend);
         }
 
-        // Draw Quad
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        // Draw Mesh
+        mesh.draw();
     }
 }
