@@ -7,6 +7,7 @@ import { FullScreenQuad } from './Engine/Rendering/FullScreenQuad.js';
 import { Texture } from './Engine/Rendering/Texture.js';
 import { GameObject } from './Engine/Core/GameObject.js';
 import { Time } from './Engine/Core/TimeManager.js';
+import { ObjLoader } from './Engine/Loaders/ObjLoader.js';
 
 // Assets
 import mainVs from './Engine/shaders/quad.vert?raw';
@@ -39,43 +40,59 @@ resizeCanvas();
 const shaderMain = new Shader(gl, mainVs, mainFs);
 const shaderScreen = new Shader(gl, screenVs, screenFs);
 
-const matColor = new Material(shaderMain);
-matColor.setVec4('uColor', 1.0, 0.5, 0.2, 1.0); // Orange
+const matWhite = new Material(shaderMain);
+const matRed = new Material(shaderMain);
+
+matWhite.setVec4('uColor', 1.0, 1.0, 1.0, 1.0); // White
+matRed.setVec4('uColor', 1.0, 1.0, 1.0, 1.0); // White
+
 
 const renderer = new Renderer(gl);
-const screenPass = new FullScreenQuad(gl);
 const camera = new Camera();
 
-const obj = new GameObject(renderer, matColor);
-obj.transform.position.z = -5.0; 
+// Perspective setup
+const aspect = canvas.width / canvas.height;
+camera.setPerspective(45 * Math.PI / 180, aspect, 0.1, 100.0);
+camera.transform.position.set(15, 15, 15);
+camera.transform.rotation.y = Math.PI / 4; 
+camera.transform.rotation.x = -Math.asin(1 / Math.sqrt(3));
 
 
-function draw(now) {
+let cubeObj = null;
+let floorObj = null;
+
+// Load Cube
+ObjLoader.load(gl, './Assets/3D/Cube.obj').then(mesh => {
+    cubeObj = new GameObject(renderer, matWhite, mesh);
+    cubeObj.transform.position.set(0, 1, 0);
+});
+
+ObjLoader.load(gl, './Assets/3D/Floor.obj').then(mesh => {
+    floorObj = new GameObject(renderer, matRed, mesh);
+    floorObj.transform.position.set(0, 0, 0);
+});
+
+
+function loop(now) {
     Time.update(now);
 
-    obj.transform.rotation.y += 1 * Time.deltaTime;
-    camera.updateView();
-    
-    const aspect = canvas.width / canvas.height;
-    camera.setPerspective(45 * Math.PI / 180, aspect, 0.1, 100.0);
-
-    sceneBuffer.bind();
+    // Render to screen
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.clearColor(0.1, 0.1, 0.1, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    obj.render(camera, sceneBuffer);
+    camera.updateView();
 
-    sceneBuffer.unbind();
+    if (cubeObj) {
+        cubeObj.render(camera);
+    }
 
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    if (floorObj) {
+        floorObj.render(camera);
+    }
 
-    screenPass.draw(shaderScreen, { 
-        'uTexture': sceneBuffer.texture
-    }, null);
-
-    requestAnimationFrame(draw);
+    
+    requestAnimationFrame(loop);
 }
+requestAnimationFrame(loop);
 
-requestAnimationFrame(draw);
