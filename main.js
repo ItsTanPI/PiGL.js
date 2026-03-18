@@ -19,6 +19,7 @@ import depthFs from './Engine/shaders/depth.frag?raw';
 import normalVs from './Engine/shaders/normal.vert?raw';
 import normalFs from './Engine/shaders/normal.frag?raw';
 import multiplyFs from './Engine/shaders/multiply.frag?raw';
+import outlineFs from './Engine/shaders/outline.frag?raw';
 
 const canvas = document.getElementById('glcanvas');
 const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
@@ -33,8 +34,7 @@ gl.depthFunc(gl.LEQUAL);
 let sceneBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight);
 let depthBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight);
 let normalBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight);
-
-let mulBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight);
+let outlineBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight);
 
 function resizeCanvas() {
     canvas.width = window.innerWidth;
@@ -44,8 +44,7 @@ function resizeCanvas() {
     sceneBuffer.resize(canvas.width, canvas.height);
     depthBuffer.resize(canvas.width, canvas.height);
     normalBuffer.resize(canvas.width, canvas.height);
-    mulBuffer.resize(canvas.width, canvas.height);
-
+    outlineBuffer.resize(canvas.width, canvas.height);
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
@@ -55,7 +54,7 @@ const shaderMain = new Shader(gl, mainVs, mainFs);
 const shaderScreen = new Shader(gl, screenVs, screenFs);
 const shaderDepth = new Shader(gl, depthVs, depthFs);
 const shaderNormal = new Shader(gl, normalVs, normalFs);
-const shaderMultiply = new Shader(gl, screenVs, multiplyFs);
+const shaderOutline = new Shader(gl, screenVs, outlineFs);
 
 const matWhite = new Material(shaderMain);
 const matRed = new Material(shaderMain);
@@ -63,7 +62,7 @@ const matRed = new Material(shaderMain);
 const matDepth = new Material(shaderDepth); // Depth material
 const matNormal = new Material(shaderNormal); // Normal material
 
-matWhite.setVec4('uColor', 1.0, 1.0, 1.0, 1.0); // White
+matWhite.setVec4('uColor', 0.5, 0.5, 0.5, 1.0); // White
 matRed.setVec4('uColor', 1.0, 0.0, 0.0, 1.0); // White
 
 
@@ -74,7 +73,7 @@ const camera = new Camera();
 // Perspective setup
 const aspect = canvas.width / canvas.height;
 camera.setPerspective(45 * Math.PI / 180, aspect, 0.1, 100.0);
-camera.transform.position.set(15, 15, 15);
+camera.transform.position.set(10, 10, 10);
 camera.transform.rotation.y = Math.PI / 4; 
 camera.transform.rotation.x = -Math.asin(1 / Math.sqrt(3));
 
@@ -82,19 +81,30 @@ let cubeObj = null;
 let floorObj = null;
 
 // Load Cube
-ObjLoader.load(gl, './Assets/3D/Cube.obj').then(mesh => {
+ObjLoader.load(gl, './Assets/3D/Monkey.obj').then(mesh => {
     cubeObj = new GameObject(renderer, matRed, mesh);
-    cubeObj.transform.position.set(0, 1, 0);
+    cubeObj.transform.position.set(0, 2, 0);
+    cubeObj.transform.scale.set(1.3, 1.3, 1.3);
+
 });
 
 ObjLoader.load(gl, './Assets/3D/Floor.obj').then(mesh => {
     floorObj = new GameObject(renderer, matWhite, mesh);
     floorObj.transform.position.set(0, 0, 0);
+    floorObj.transform.scale.set(1.3, 1.3, 1.3);
+
 });
 
 
 function loop(now) {
     Time.update(now);
+
+    if (cubeObj) {
+        // Spin the cube
+        // cubeObj.transform.rotation.x += 1.0 * Time.deltaTime;
+        cubeObj.transform.rotation.y += 1.0 * Time.deltaTime;
+    
+    }
 
     camera.updateView();
 
@@ -119,31 +129,32 @@ function loop(now) {
 
     // 3. Scene Pass
     sceneBuffer.bind();
-    gl.clearColor(0.1, 0.1, 0.1, 1.0);
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     // Render with default materials to sceneBuffer
     if (cubeObj) cubeObj.render(camera, sceneBuffer);
     if (floorObj) floorObj.render(camera, sceneBuffer);
     sceneBuffer.unbind();
 
-    // 4. Multiply Pass (Mix Depth & Scene for example)
-    mulBuffer.bind();
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    screenPass.draw(shaderMultiply, {
-        'uTexture1': normalBuffer.texture,
-        'uTexture2': depthBuffer.texture,
-        'uMultiplier': 1.0
-    }, mulBuffer);
-    mulBuffer.unbind();
-
+    // 4. Outline Pass
+    outlineBuffer.bind();
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // Clear mask to black (no edge)
+    screenPass.draw(shaderOutline, {
+        'uDepthTexture': depthBuffer.texture,
+        'uNormalTexture': normalBuffer.texture,
+        'uSceneTexture' : sceneBuffer.texture,
+        'uResolution': [canvas.width, canvas.height]
+    }, outlineBuffer);
+    outlineBuffer.unbind();
     // 5. Final Screen Pass
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.1, 0.1, 0.1, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     
-    // Display the result of multiplication
+    // Display the Outline Buffer
     screenPass.draw(shaderScreen, {
-        'uTexture': sceneBuffer.texture
+        'uTexture': outlineBuffer.texture
     });
     
     requestAnimationFrame(loop);

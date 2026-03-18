@@ -4,7 +4,6 @@ varying vec2 vTexCoord;
 
 uniform sampler2D uTexture1;
 uniform sampler2D uTexture2;
-uniform float uMultiplier;
 
 void main() {
     vec4 c1 = texture2D(uTexture1, vTexCoord);
@@ -14,9 +13,5 @@ void main() {
     // Normalized depth should not be black everywhere.
     
     // Just multiply them
-    gl_FragColor = c1 * c2 * uMultiplier;
-    
-    // Fallback debug:
-    // gl_FragColor = vec4(c1.rgb, 1.0); // Show Scene Only
-    // gl_FragColor = vec4(c2.rgb, 1.0); // Show Depth Only
+    gl_FragColor = c1 + c2;
 }
