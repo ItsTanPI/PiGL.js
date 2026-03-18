@@ -62,11 +62,12 @@ export class FullScreenQuad {
             if (value instanceof WebGLTexture) {
                 gl.activeTexture(gl.TEXTURE0 + textureUnit);
                 gl.bindTexture(gl.TEXTURE_2D, value);
-                shader.setUniform(key, textureUnit); // Set sampler to unit index
+                shader.setUniform(key, textureUnit, '1i'); // Set sampler to unit index with integer type
                 textureUnit++;
             } else {
                 shader.setUniform(key, value);
             }
+
         }
 
         // 5. Draw
