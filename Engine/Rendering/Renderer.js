@@ -16,11 +16,23 @@ export class Renderer {
         gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
     }
 
-    draw(gameObject, camera) {
+    draw(gameObject, camera, target = undefined) {
         const material = gameObject.material;
         if (!material || !material.shader) return;
 
         const gl = this.gl;
+        
+        // Handle render target if specified
+        if (target !== undefined) {
+             if (target) {
+                 target.bind();
+             } else {
+                 // Explicitly requested screen
+                 gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                 gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+             }
+        }
+
         const shader = material.shader;
         shader.use();
 

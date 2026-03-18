@@ -7,12 +7,12 @@ export class GameObject {
         this.material = material; 
     }
 
-    render(camera) {
+    render(camera, target = undefined) {
         // Ensure world matrix is updated before drawing
         this.transform.updateWorldMatrix();
         
         if (this.renderer && this.material) {
-            this.renderer.draw(this, camera);
+            this.renderer.draw(this, camera, target);
         }
     }
 }
