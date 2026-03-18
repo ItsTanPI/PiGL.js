@@ -1,7 +1,30 @@
 export class Material {
-    constructor(shader) {
+    constructor(shader, name = 'Material') {
         this.shader = shader;
         this.uniforms = {};
+        this.name = name;
+    }
+
+    setUniforms(obj) {
+        for (const key in obj) {
+            let val = obj[key];
+            // Auto-detect type if not exists, or update value
+            
+            // Check if it's a vector array
+            if (Array.isArray(val) || val instanceof Float32Array) {
+                if (val.length === 2) this.setVec2(key, val[0], val[1]);
+                else if (val.length === 3) this.setVec3(key, val[0], val[1], val[2]);
+                else if (val.length === 4) this.setVec4(key, val[0], val[1], val[2], val[3]);
+                else if (val.length === 16) this.setMat4(key, val);
+            } else if (typeof val === 'number') {
+                this.setFloat(key, val);
+            } else if (val instanceof WebGLTexture) {
+                // Determine unit? Usually handled by renderer binding.
+                // Just store as generic value for now.
+                this.uniforms[key] = { value: val, type: 'Texture' }; 
+            }
+        }
+        return this; // Chainable
     }
 
     setFloat(name, value) {

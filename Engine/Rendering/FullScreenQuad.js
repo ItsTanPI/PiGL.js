@@ -17,13 +17,33 @@ export class FullScreenQuad {
 
     /**
      * Executes a shader pass.
-     * @param {Shader} shader - The shader to use.
-     * @param {Object} uniforms - Key-value pairs of uniforms. Textures should be WebGLTexture objects.
+     * @param {Shader|Material} shaderOrMaterial - The shader to use or a Material object.
+     * @param {Object} uniforms - Key-value pairs of uniforms (if passing raw Shader). Ignored if Material is used.
      * @param {RenderTarget|null} target - The output target. If null, renders to screen.
      */
-    draw(shader, uniforms = {}, target = null) {
+    draw(shaderOrMaterial, uniforms = {}, target = null) {
         const gl = this.gl;
         
+        let shader;
+        let finalUniforms = uniforms;
+        
+        // Handle Material input
+        if (shaderOrMaterial.uniforms && shaderOrMaterial.shader) {
+            shader = shaderOrMaterial.shader;
+            // Convert Material.uniforms { type, value } format to raw key-value for this function's logic
+            // Or better, just adapt loop below
+            finalUniforms = {};
+            for (const key in shaderOrMaterial.uniforms) {
+                finalUniforms[key] = shaderOrMaterial.uniforms[key].value;
+            }
+            // If target was passed as 2nd arg (when using material), swap it
+            if (uniforms && (uniforms.bind || uniforms === null)) {
+                target = uniforms;
+            }
+        } else {
+            shader = shaderOrMaterial;
+        }
+
         // 1. Bind Render Target
         if (target) {
             target.bind();
@@ -53,8 +73,8 @@ export class FullScreenQuad {
         // 4. Set Uniforms & Bind Textures
         let textureUnit = 0;
         
-        for (const key in uniforms) {
-            const value = uniforms[key];
+        for (const key in finalUniforms) {
+            const value = finalUniforms[key];
 
             // Check if value is a texture (simple check for now)
             // In WebGL, textures are objects. 

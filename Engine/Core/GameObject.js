@@ -1,7 +1,8 @@
 import { Transform } from '../Math/Transform.js';
 
 export class GameObject {
-    constructor(renderer, material, mesh = null) {
+    constructor(renderer, material, mesh = null, name = "GameObject") {
+        this.name = name;
         this.transform = new Transform();
         this.renderer = renderer;
         this.material = material; 

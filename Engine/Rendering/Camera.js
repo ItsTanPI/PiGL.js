@@ -13,6 +13,7 @@ export class Camera extends GameObject {
 
         // Ensure starting position is matched with transform
         this.transform.position.set(0, 0, 5);
+        this.name = 'Camera';
     }
 
     setPerspective(fov, aspect, near, far) {
