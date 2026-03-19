@@ -3,6 +3,9 @@ import { Mesh } from './Mesh.js';
 export class Renderer {
     constructor(gl) {
         this.gl = gl;
+        this.drawCalls = 0;
+        this.currentPassDrawCalls = [];
+        this.drawCallDetails = [];
         
         // Define a unit Quad (Triangle Strip) suitable for Sprite rendering
         // converted to separate arrays for Mesh class compatibility
@@ -124,5 +127,22 @@ export class Renderer {
 
         // Draw Mesh
         mesh.draw();
+        this.drawCalls++;
+
+        // Track detail
+        this.drawCallDetails.push({
+            object: gameObject ? gameObject.name : 'Unknown',
+            material: matToUse ? matToUse.name : 'Unknown',
+            shader: shader ? (shader.name || 'Shader') : 'Unknown',
+            target: target ? 'RenderTarget' : 'Screen'
+        });
+    }
+
+    resetDrawCalls() {
+        const count = this.drawCalls;
+        const details = [...this.drawCallDetails];
+        this.drawCalls = 0;
+        this.drawCallDetails = [];
+        return { count, details };
     }
 }

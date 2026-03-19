@@ -9,7 +9,14 @@ import { GameObject } from './Engine/Core/GameObject.js';
 import { Time } from './Engine/Core/TimeManager.js';
 import { ObjLoader } from './Engine/Loaders/ObjLoader.js';
 
-import { Editor } from './Engine/Editor/Editor.js';
+
+import { RenderQueue } from './Engine/Rendering/RenderQueue.js';
+import { ObjectRenderPass } from './Engine/Rendering/ObjectRenderPass.js';
+import { ScreenRenderPass } from './Engine/Rendering/ScreenRenderPass.js';
+import { ViewportPass } from './Engine/Rendering/Passes/ViewportPass.js';
+
+import { ProfilerInstrumenter } from './Engine/Profiling/Profiler.js';
+import { Editor } from './Editor/Editor.js';
 
 // Assets
 import mainVs from './Engine/shaders/quad.vert?raw';
@@ -36,20 +43,6 @@ let sceneBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight);
 let depthBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight);
 let normalBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight);
 let outlineBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight);
-
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-    
-    sceneBuffer.resize(canvas.width, canvas.height);
-    depthBuffer.resize(canvas.width, canvas.height);
-    normalBuffer.resize(canvas.width, canvas.height);
-    outlineBuffer.resize(canvas.width, canvas.height);
-}
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
-
 
 const shaderMain = new Shader(gl, mainVs, mainFs);
 const shaderScreen = new Shader(gl, screenVs, screenFs);
@@ -88,8 +81,63 @@ const materials = {
 
 
 const renderer = new Renderer(gl);
-const screenPass = new FullScreenQuad(gl);
 const camera = new Camera();
+
+const scene = [];
+const renderQueue = new RenderQueue();
+
+const depthPass = new ObjectRenderPass(gl, canvas.width, canvas.height, depthBuffer, matDepth, 'Depth Pass');
+depthPass.clearColor = [1.0, 1.0, 1.0, 1.0];
+renderQueue.addPass(depthPass);
+
+// 2. Normal Pass
+const normalPass = new ObjectRenderPass(gl, canvas.width, canvas.height, normalBuffer, matNormal, 'Normal Pass');
+normalPass.clearColor = [0.5, 0.5, 1.0, 1.0];
+renderQueue.addPass(normalPass);
+
+// 3. Scene Pass
+const scenePass = new ObjectRenderPass(gl, canvas.width, canvas.height, sceneBuffer, null, 'Scene Pass');
+scenePass.clearColor = [0.0, 0.0, 0.0, 1.0];
+renderQueue.addPass(scenePass);
+
+// 4. Outline Pass
+const outlinePass = new ScreenRenderPass(gl, canvas.width, canvas.height, matOutline, outlineBuffer, 'Outline Pass');
+outlinePass.clearColor = [0.0, 0.0, 0.0, 0.0];
+outlinePass.setTexture('uDepthTexture', depthBuffer.texture);
+outlinePass.setTexture('uNormalTexture', normalBuffer.texture);
+outlinePass.setTexture('uSceneTexture', sceneBuffer.texture);
+renderQueue.addPass(outlinePass);
+
+// 5. Viewport Pass
+const viewportPass = new ViewportPass(gl, canvas.width, canvas.height, matScreen);
+viewportPass.setBuffer('Depth', depthBuffer.texture);
+viewportPass.setBuffer('Normal', normalBuffer.texture);
+viewportPass.setBuffer('Scene', sceneBuffer.texture);
+viewportPass.setBuffer('Outline', outlineBuffer.texture);
+renderQueue.addPass(viewportPass);
+
+// Resize System
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    
+    // Resize buffers
+    sceneBuffer.resize(canvas.width, canvas.height);
+    depthBuffer.resize(canvas.width, canvas.height);
+    normalBuffer.resize(canvas.width, canvas.height);
+    outlineBuffer.resize(canvas.width, canvas.height);
+
+    // Resize passes
+    renderQueue.resize(canvas.width, canvas.height);
+
+    // Update Camera Aspect Ratio
+    const aspect = canvas.width / canvas.height;
+    camera.setPerspective(45 * Math.PI / 180, aspect, 0.1, 100.0);
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas(); // Initial call
+
 
 // Perspective setup
 const aspect = canvas.width / canvas.height;
@@ -106,17 +154,19 @@ ObjLoader.load(gl, './Assets/3D/Monkey.obj').then(mesh => {
     cubeObj = new GameObject(renderer, matRed, mesh, 'Monkey'); // Changed to Monkey
     cubeObj.transform.position.set(0, 2, 0);
     cubeObj.transform.scale.set(1.3, 1.3, 1.3);
+    scene.push(cubeObj);
 
     // Init Editor once objects are loaded (or init empty and refresh)
-    if (floorObj) initEditor();
+    // if (floorObj) initEditor();
 });
 
 ObjLoader.load(gl, './Assets/3D/Floor.obj').then(mesh => {
     floorObj = new GameObject(renderer, matWhite, mesh, 'Floor');
     floorObj.transform.position.set(0, 0, 0);
     floorObj.transform.scale.set(1.3, 1.3, 1.3);
+    scene.push(floorObj);
 
-    if (cubeObj) initEditor();
+    // if (cubeObj) initEditor();
 });
 
 
@@ -126,119 +176,49 @@ const viewports = [
     { x: 0.0, y: 0.0, w: 1.0, h: 1.0, pass: 'Outline' } // Default Fullscreen
 ];
 
-let editor;
-function initEditor() {
-    if (editor) return; // already init
-    
-    // Expose viewports to editor
-    const gameInterface = {
-        cubeObj,
-        floorObj,
-        camera,
-        materials,
-        viewports, 
-        // Helper to update active viewport pass (useful for single view editor logic)
-        activePass: 'Outline',
-        setActivePass(name) { 
-            this.activePass = name; 
-            // Update first viewport for now
-            if (this.viewports.length > 0) this.viewports[0].pass = name;
-        }
-    };
+// Set initial viewports
+viewportPass.setViewports(viewports);
 
-    editor = new Editor(gameInterface);
-}
 
+// Init Editor
+const game = {
+    gl,
+    scene,
+    camera,
+    renderer,
+    renderQueue,
+    materials // exposed for Material Window later,
+};
+
+// Add setter for viewports
+game.setViewports = (mode) => {
+    viewports[0].pass = mode; 
+};
+
+// Initialize the Editor
+const editor = new Editor(game);
+
+
+// Profiler Setup
+const profiler = ProfilerInstrumenter.attach(renderQueue, renderer);
 
 function loop(now) {
     Time.update(now);
+    game.deltaTime = Time.deltaTime; // Expose to editor for profiler
 
     if (cubeObj) {
         // Spin the cube
         // cubeObj.transform.rotation.x += 1.0 * Time.deltaTime;
         cubeObj.transform.rotation.y += 1.0 * Time.deltaTime;
-    
     }
 
     camera.updateView();
 
-    // 1. Depth Pass (Render to texture)
-    depthBuffer.bind(); 
-    gl.clearColor(1.0, 1.0, 1.0, 1.0); // Clear to white (max depth)
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    // Explicitly target the depthBuffer, although bind() above sets it, 
-    // passing it ensures the renderer knows the target context if needed.
-    if (cubeObj) cubeObj.render(camera, depthBuffer, matDepth);
-    if (floorObj) floorObj.render(camera, depthBuffer, matDepth);
-    depthBuffer.unbind();
+    // Update viewport pass
+    viewportPass.setViewports(viewports);
 
-    // 2. Normal Pass
-    normalBuffer.bind();
-    gl.clearColor(0.5, 0.5, 1.0, 1.0); // Default normal "flat blue" in tangent space, or just background
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    // Render with normal material override
-    if (cubeObj) cubeObj.render(camera, normalBuffer, matNormal);
-    if (floorObj) floorObj.render(camera, normalBuffer, matNormal);
-    normalBuffer.unbind();
-
-    // 3. Scene Pass
-    sceneBuffer.bind();
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    // Render with default materials to sceneBuffer
-    if (cubeObj) cubeObj.render(camera, sceneBuffer);
-    if (floorObj) floorObj.render(camera, sceneBuffer);
-    sceneBuffer.unbind();
-
-    // 4. Outline Pass
-    outlineBuffer.bind();
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // Clear mask to black (no edge)
-    
-    // Update material with textures (since textures might be dynamic from render buffers)
-    // Though usually we set them once if the buffer texture objects don't change.
-    matOutline.setUniform('uDepthTexture', depthBuffer.texture);
-    matOutline.setUniform('uNormalTexture', normalBuffer.texture);
-    matOutline.setUniform('uSceneTexture', sceneBuffer.texture);
-    matOutline.setUniform('uResolution', [canvas.width, canvas.height]);
-    
-    screenPass.draw(matOutline, outlineBuffer);
-    outlineBuffer.unbind();
-
-    // 5. Final Screen Viewports
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    
-    // Clear entire screen first
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.clearColor(0.1, 0.1, 0.1, 1.0);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-    // Loop through viewports
-    // We can support dynamic editor modification of this array
-    const vps = (editor && editor.game.viewports) ? editor.game.viewports : viewports;
-
-    for (const vp of vps) {
-        // Calculate pixel rect
-        const valX = Math.floor(vp.x * canvas.width);
-        const valY = Math.floor(vp.y * canvas.height); // WebGL y is bottom-up
-        const valW = Math.floor(vp.w * canvas.width);
-        const valH = Math.floor(vp.h * canvas.height);
-
-        gl.viewport(valX, valY, valW, valH);
-        
-        // Define Scissor to restrict clearing if we were clearing per-viewport (we aren't here)
-        // gl.scissor(valX, valY, valW, valH);
-
-        // Determine texture to show
-        let finalTex = outlineBuffer.texture; 
-        const p = vp.pass;
-        if (p === 'Scene') finalTex = sceneBuffer.texture;
-        else if (p === 'Depth') finalTex = depthBuffer.texture;
-        else if (p === 'Normal') finalTex = normalBuffer.texture;
-        else if (p === 'Outline') finalTex = outlineBuffer.texture;
-
-        matScreen.setUniform('uTexture', finalTex); // Generic setter
-        screenPass.draw(matScreen);
-    }
+    // Execute Render Queue
+    renderQueue.execute(renderer, scene, camera);
     
     requestAnimationFrame(loop);
 }
