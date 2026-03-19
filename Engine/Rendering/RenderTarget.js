@@ -1,5 +1,5 @@
 export class RenderTarget {
-    constructor(gl, width, height) {
+    constructor(gl, width, height, options = {}) {
         this.gl = gl;
         this.width = width;
         this.height = height;
@@ -12,13 +12,18 @@ export class RenderTarget {
         gl.bindTexture(gl.TEXTURE_2D, this.texture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
         
-        // Linear filtering for smoother scaling
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        // Configurable filtering
+        const minFilter = options.minFilter !== undefined ? options.minFilter : gl.LINEAR;
+        const magFilter = options.magFilter !== undefined ? options.magFilter : gl.LINEAR;
+        const wrapS = options.wrapS !== undefined ? options.wrapS : gl.CLAMP_TO_EDGE;
+        const wrapT = options.wrapT !== undefined ? options.wrapT : gl.CLAMP_TO_EDGE;
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, minFilter);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, magFilter);
         
         // Clamp to edge is safer for non-power-of-2 textures
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrapS);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrapT);
 
         // Attach texture to framebuffer color attachment
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);

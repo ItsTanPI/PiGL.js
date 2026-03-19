@@ -16,6 +16,7 @@ import { LightingPass } from './Engine/Rendering/Passes/LightingPass.js';
 
 import { ProfilerInstrumenter } from './Engine/Profiling/Profiler.js';
 import { Editor } from './Editor/Editor.js';
+import { CameraController } from './Engine/Input/CameraController.js';
 
 // Assets
 import mainVs from './Engine/shaders/quad.vert?raw';
@@ -30,26 +31,31 @@ import outlineFs from './Engine/shaders/outline.frag?raw';
 import noiseFs from './Engine/shaders/noise.frag?raw';
 import lightingVs from './Engine/shaders/lighting.vert?raw';
 import lightingFs from './Engine/shaders/lighting.frag?raw';
+import shadowVs from './Engine/shaders/shadow.vert?raw';
+import shadowFs from './Engine/shaders/shadow.frag?raw';
 
 const canvas = document.getElementById('glcanvas');
 const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
 if (!gl) { alert('Unable to initialize WebGL.'); }
 gl.getExtension('OES_standard_derivatives');
+gl.getExtension('EXT_shader_texture_lod'); // Often useful
 
 gl.enable(gl.BLEND);
 gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 gl.enable(gl.DEPTH_TEST);
 gl.depthFunc(gl.LEQUAL);
 
-let sceneBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight);
-let depthBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight);
-let normalBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight);
+let sceneBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
+let depthBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST } );
+let normalBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
 let outlineBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight);
 let lightingBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight);
+let shadowBuffer = new RenderTarget(gl, 1024, 1024);
 
 const shaderMain = new Shader(gl, mainVs, mainFs);
 const shaderScreen = new Shader(gl, screenVs, screenFs);
 const shaderDepth = new Shader(gl, depthVs, depthFs);
+const shaderShadow = new Shader(gl, shadowVs, shadowFs);
 const shaderNormal = new Shader(gl, normalVs, normalFs);
 const shaderOutline = new Shader(gl, screenVs, outlineFs);
 const shaderNoise = new Shader(gl, mainVs, noiseFs);
@@ -67,6 +73,7 @@ matLighting.setUniforms({
     'uAmbient': 0.1
 });
 
+const matShadow = new Material(shaderShadow, 'ShadowMap');
 const matDepth = new Material(shaderDepth, 'Depth'); // Depth material
 const matNormal = new Material(shaderNormal, 'Normal'); // Normal material
 const matOutline = new Material(shaderOutline, 'Outline'); // Outline Material
@@ -86,9 +93,9 @@ matNoise.setUniforms({ 'uColor': [1.0, 1.0, 1.0, 1.0], 'uWind': [0.5, 0.2], // M
     'uScale': 1.0 });
     
 matLighting.setUniforms({
-    'uLightDir': [0.5, 0.8, 0.2],
+    'uLightDir': [0.5, 0.5, 0.3],
     'uLightColor': [1.0, 1.0, 0.9],
-    'uAmbient': 0.1
+    'uAmbient': 0.3
 });
 
 // Register Materials for Editor
@@ -97,6 +104,7 @@ const materials = {
     'Red': matRed,
     'Noise': matNoise,
     'Lighting': matLighting,
+    'Shadow': matShadow,
     'Depth': matDepth,
     'Normal': matNormal,
     'Outline': matOutline,
@@ -106,9 +114,16 @@ const materials = {
 
 const renderer = new Renderer(gl);
 const camera = new Camera();
+const lightCamera = new Camera(); // Camera for shadow casting
 
 const scene = [];
 const renderQueue = new RenderQueue();
+
+// 0. Shadow Pass
+const shadowPass = new ObjectRenderPass(gl, shadowBuffer.width, shadowBuffer.height, shadowBuffer, matShadow, 'Shadow Pass');
+shadowPass.clearColor = [1.0, 1.0, 1.0, 1.0]; // Set depth to max
+shadowPass.autoResize = false; // Fixed resolution
+renderQueue.addPass(shadowPass);
 
 // 1. Depth Pass
 const depthPass = new ObjectRenderPass(gl, canvas.width, canvas.height, depthBuffer, matDepth, 'Depth Pass');
@@ -127,9 +142,7 @@ renderQueue.addPass(scenePass);
 
 // 4. Lighting Pass
 const lightingPass = new LightingPass(gl, canvas.width, canvas.height, matLighting, lightingBuffer, 'Lighting Pass');
-lightingPass.setTexture('uSceneTexture', sceneBuffer.texture);
-lightingPass.setTexture('uNormalTexture', normalBuffer.texture);
-lightingPass.setTexture('uDepthTexture', depthBuffer.texture);
+lightingPass.setInputBuffers(sceneBuffer.texture, normalBuffer.texture, depthBuffer.texture, shadowBuffer.texture);
 renderQueue.addPass(lightingPass);
 
 // 5. Viewport Pass
@@ -138,6 +151,12 @@ viewportPass.setBuffer('Final', lightingBuffer.texture);
 viewportPass.setBuffer('Albedo', sceneBuffer.texture);
 viewportPass.setBuffer('Normal', normalBuffer.texture);
 viewportPass.setBuffer('Depth', depthBuffer.texture);
+viewportPass.setBuffer('Shadow', shadowBuffer.texture);
+
+// Assign critical camera overrides for pipeline automatization
+shadowPass.camera = lightCamera;
+lightingPass.lightCamera = lightCamera;
+
 renderQueue.addPass(viewportPass);
 
 // Resize System
@@ -152,7 +171,8 @@ function resizeCanvas() {
     normalBuffer.resize(canvas.width, canvas.height);
     outlineBuffer.resize(canvas.width, canvas.height);
     lightingBuffer.resize(canvas.width, canvas.height);
-
+    // shadowBuffer is fixed size for now or could be dynamic
+    
     // Resize passes
     renderQueue.resize(canvas.width, canvas.height);
 
@@ -224,6 +244,7 @@ game.setViewports = (mode) => {
 // Initialize the Editor
 const editor = new Editor(game);
 
+const cameraController = new CameraController(camera, canvas);
 
 // Profiler Setup
 const profiler = ProfilerInstrumenter.attach(renderQueue, renderer);
@@ -231,6 +252,9 @@ const profiler = ProfilerInstrumenter.attach(renderQueue, renderer);
 function loop(now) {
     Time.update(now);
     game.deltaTime = Time.deltaTime; // Expose to editor for profiler
+    
+    // Update Camera (WASD + Right Mouse)
+    cameraController.update(Time.deltaTime);
 
     if (meshObj) {
         // Spin the cube
@@ -239,22 +263,59 @@ function loop(now) {
     }
 
     // Update noise time
-matNoise.setUniforms({ 
-    'uTime': Time.time,
+    matNoise.setUniforms({ 
+        'uTime': Time.time,
     });
 
-    // Make sure lighting uniforms are also set/updated if needed (or rely on material persistence)
-    // Uncomment to animate light direction if desired
-    // const ld = [Math.sin(Time.time), 0.8, Math.cos(Time.time)];
-    // matLighting.setUniforms({'uLightDir': ld});
+    // --- Update Lights & Shadow Camera ---
+    // Read directly from material so editor changes reflect instantly
+    let lightDir = [0.5, 0.8, 0.2]; // Default
+    if (matLighting.uniforms['uLightDir'] && matLighting.uniforms['uLightDir'].value) {
+        const v = matLighting.uniforms['uLightDir'].value;
+        // Normalize for safe camera math
+        const len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+        if (len > 0.001) {
+            lightDir = [v[0]/len, v[1]/len, v[2]/len];
+        } else {
+             lightDir = [v[0], v[1], v[2]];
+        }
+    }
+
+    const lightTarget = [0, 0, 0];
+    
+    const dist = 50.0;
+    lightCamera.transform.position.set(
+        lightTarget[0] + lightDir[0] * dist,
+        lightTarget[1] + lightDir[1] * dist,
+        lightTarget[2] + lightDir[2] * dist
+    );
+    
+    const size = 30.0;
+    lightCamera.setOrthographic(-size, size, -size, size, 1.0, 100.0);
+    
+    lightCamera.transform.rotation.x = -Math.asin(lightDir[1]); 
+    lightCamera.transform.rotation.y = Math.atan2(lightDir[0], lightDir[2]); 
+
+    lightCamera.updateView();
+
 
     camera.updateView();
 
-    // Update viewport pass
     viewportPass.setViewports(viewports);
+    shadowPass.camera = lightCamera;
 
-    // Execute Render Queue
     renderQueue.execute(renderer, scene, camera);
+    
+    // Debugging - Manual is replaced by queue
+    // shadowPass.execute(renderer, scene, lightCamera);
+
+    // depthPass.execute(renderer, scene, camera);
+    // normalPass.execute(renderer, scene, camera);
+    // scenePass.execute(renderer, scene, camera);
+
+    // lightingPass.setMatricesFromCameras(camera, lightCamera);
+    // lightingPass.execute(renderer, scene, camera);
+    // viewportPass.execute(renderer, scene, camera);
     
     requestAnimationFrame(loop);
 }

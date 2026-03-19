@@ -1,0 +1,128 @@
+export class CameraController {
+    constructor(camera, domElement) {
+        this.camera = camera;
+        this.domElement = domElement;
+        
+        this.moveSpeed = 10.0;
+        this.mouseSensitivity = 0.002;
+        
+        this.keys = {
+            w: false, a: false, s: false, d: false,
+            q: false, e: false
+        };
+        
+        this.mouse = {
+            x: 0, y: 0,
+            lastX: 0, lastY: 0,
+            isDown: false
+        };
+
+        // Sync initial rotation
+        this.rotation = {
+            x: camera.transform.rotation.x,
+            y: camera.transform.rotation.y
+        };
+
+        this._initEvents();
+    }
+
+    _initEvents() {
+        window.addEventListener('keydown', (e) => this._onKey(e, true));
+        window.addEventListener('keyup', (e) => this._onKey(e, false));
+
+        this.domElement.addEventListener('mousedown', (e) => {
+            if (e.button === 2) { // Right click
+                this.mouse.isDown = true;
+                this.mouse.lastX = e.clientX;
+                this.mouse.lastY = e.clientY;
+                // e.preventDefault();
+            }
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            if (e.button === 2) {
+                this.mouse.isDown = false;
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!this.mouse.isDown) return;
+            
+            const dx = e.clientX - this.mouse.lastX;
+            const dy = e.clientY - this.mouse.lastY;
+            
+            this.mouse.lastX = e.clientX;
+            this.mouse.lastY = e.clientY;
+
+            // Yaw (Y-axis) - Left/Right
+            this.rotation.y -= dx * this.mouseSensitivity;
+            
+            // Pitch (X-axis) - Up/Down
+            this.rotation.x -= dy * this.mouseSensitivity;
+            
+            // Clamp pitch to avoid flipping
+            const limit = Math.PI / 2 - 0.01;
+            this.rotation.x = Math.max(-limit, Math.min(limit, this.rotation.x));
+
+            this.camera.transform.rotation.x = this.rotation.x;
+            this.camera.transform.rotation.y = this.rotation.y;
+        });
+
+        // Prevent context menu
+        this.domElement.addEventListener('contextmenu', e => e.preventDefault());
+    }
+
+    _onKey(e, isDown) {
+        const key = e.key.toLowerCase();
+        if (this.keys.hasOwnProperty(key)) {
+            this.keys[key] = isDown;
+        }
+    }
+
+    update(dt) {
+        const speed = this.moveSpeed * dt;
+        const transform = this.camera.transform;
+        
+        // Calculate Forward and Right vectors from Yaw (Y rotation)
+        // Standard WebGL/OpenGL: -Z is forward, +Y is up, +X is right
+        // Rotation Y 0 means looking at -Z
+        
+        const sinY = Math.sin(transform.rotation.y);
+        const cosY = Math.cos(transform.rotation.y);
+
+        // Forward on XZ plane
+        // if rotY=0, forward is (0,0,-1). sin0=0, cos0=1. 
+        // forwardX = -sin(0) = 0. forwardZ = -cos(0) = -1. Correct.
+        const forwardX = -sinY;
+        const forwardZ = -cosY;
+
+        // Right vector on XZ plane
+        // if rotY=0, right is (1,0,0). 
+        // rightX = cos(0) = 1. rightZ = -sin(0) = 0. Correct.
+        const rightX = cosY;
+        const rightZ = -sinY;
+
+        let mx = 0; // Strafe
+        let mz = 0; // Forward/Back
+        let my = 0; // Up/Down
+
+        if (this.keys.w) mz += 1;
+        if (this.keys.s) mz -= 1;
+        if (this.keys.a) mx -= 1;
+        if (this.keys.d) mx += 1;
+        if (this.keys.q) my += 1; 
+        if (this.keys.e) my -= 1;
+
+        // Normalize vector if moving diagonally
+        if (mx !== 0 || mz !== 0) {
+            // Simple normalization for plane movement
+            const len = Math.sqrt(mx*mx + mz*mz);
+            mx /= len;
+            mz /= len;
+        }
+
+        transform.position.x += (forwardX * mz + rightX * mx) * speed;
+        transform.position.z += (forwardZ * mz + rightZ * mx) * speed;
+        transform.position.y += my * speed;
+    }
+}
