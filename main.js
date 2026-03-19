@@ -38,6 +38,10 @@ import shadowVs from './Engine/shaders/shadow.vert?raw';
 import shadowFs from './Engine/shaders/shadow.frag?raw';
 import skyboxFs from './Engine/shaders/skybox.frag?raw';
 import pixelArtFs from './Engine/shaders/pixelart.frag?raw';
+import displacementVs from './Engine/shaders/displacement.vert?raw';
+import displacementFs from './Engine/shaders/displacement.frag?raw';
+
+
 
 const canvas = document.getElementById('glcanvas');
 const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
@@ -55,7 +59,7 @@ let depthBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { 
 let normalBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
 let outlineBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
 let pixelArtBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
-let lightingBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight);
+let lightingBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
 let shadowBuffer = new RenderTarget(gl, 1024, 1024);
 
 const shaderMain = new Shader(gl, mainVs, mainFs);
@@ -65,6 +69,8 @@ const shaderShadow = new Shader(gl, shadowVs, shadowFs);
 const shaderNormal = new Shader(gl, normalVs, normalFs);
 const shaderOutline = new Shader(gl, screenVs, outlineFs);
 const shaderNoise = new Shader(gl, mainVs, noiseFs);
+const shaderDisplacemet = new Shader(gl, displacementVs, displacementFs);
+
 const shaderLighting = new Shader(gl, lightingVs, lightingFs);
 const shaderSkybox = new Shader(gl, screenVs, skyboxFs);
 const shaderPixelArt = new Shader(gl, screenVs, pixelArtFs);
@@ -72,13 +78,28 @@ const shaderPixelArt = new Shader(gl, screenVs, pixelArtFs);
 const matWhite = new Material(shaderMain, 'White');
 const matRed = new Material(shaderMain, 'Red');
 const matNoise = new Material(shaderNoise, 'Noise');
+const matDisplacement = new Material(shaderDisplacemet, 'Displacement');
+
+// Custom Depth/Normal Materials for Displacement
+const shaderDisplacementDepth = new Shader(gl, displacementVs, depthFs);
+const shaderDisplacementNormal = new Shader(gl, displacementVs, normalFs);
+const matDisplacementDepth = new Material(shaderDisplacementDepth, 'Displacement Depth');
+const matDisplacementNormal = new Material(shaderDisplacementNormal, 'Displacement Normal');
+
 const matLighting = new Material(shaderLighting, 'PPL Lighting');
 const matSkybox = new Material(shaderSkybox, 'Skybox');
 const matPixelArt = new Material(shaderPixelArt, 'PixelArt');
 
+const matShadow = new Material(shaderShadow, 'ShadowMap');
+const matDepth = new Material(shaderDepth, 'Depth'); // Depth material
+const matNormal = new Material(shaderNormal, 'Normal'); // Normal material
+const matOutline = new Material(shaderOutline, 'Outline'); // Outline Material
+const matScreen = new Material(shaderScreen, 'Screen'); // Final Screen Material (was just shader)
+
+
 matPixelArt.setUniforms({
     'uPixelSize': 4.0,
-    'uColorLevels': 256.0
+    'uColorLevels': 64.0
 });
 
 // Set Initial Lighting to ensure it's not black
@@ -94,11 +115,6 @@ matSkybox.setUniforms({
     'uSunColor': [1.0, 1.0, 0.8]
 });
 
-const matShadow = new Material(shaderShadow, 'ShadowMap');
-const matDepth = new Material(shaderDepth, 'Depth'); // Depth material
-const matNormal = new Material(shaderNormal, 'Normal'); // Normal material
-const matOutline = new Material(shaderOutline, 'Outline'); // Outline Material
-const matScreen = new Material(shaderScreen, 'Screen'); // Final Screen Material (was just shader)
 
 // Default Outline Settings
 matOutline.setUniforms({
@@ -121,7 +137,38 @@ matNoise.setUniforms({
     'uColor2': [0.35, 0.55, 0.15], 
     'uColor3': [0.75, 0.85, 0.35]
 });
-    
+
+const waterConfig = {
+    // Shared Physics & Movement
+    uWind: [0.05, 0.02],
+    uSpeed: 10.2,
+    uScale: 0.05,
+    udisplacement: 0.3, 
+    uSteepness: 0.15,
+    uWavelength: 20.0,
+    uTime: 0, // This will be updated in your render loop
+
+    // Aesthetic Colors
+    uColor1: [0.0, 0.4, 0.5],
+    uColor2: [0.0, 0.2, 0.4],
+    uColor3: [0.8, 1.0, 1.0],
+    uColor: [1.0, 1.0, 1.0, 1.0]
+};
+
+// List of all materials that need these exact parameters
+const waterMaterials = [
+    matDisplacement, 
+    matDisplacementDepth, 
+    matDisplacementNormal
+];
+
+
+// To update all materials at once
+waterMaterials.forEach(mat => {
+    mat.setUniforms(waterConfig);
+});
+
+
 matLighting.setUniforms({
     'uLightDir': [0.5, 0.5, 0.3],
     'uLightColor': [1.0, 1.0, 0.9],
@@ -167,7 +214,7 @@ const normalPass = new ObjectRenderPass(gl, canvas.width, canvas.height, normalB
 normalPass.clearColor = [0.5, 0.5, 1.0, 1.0];
 renderQueue.addPass(normalPass);
 
-// 3. Scene Pass 
+// 3. Albedo Pass 
 const scenePass = new ObjectRenderPass(gl, canvas.width, canvas.height, sceneBuffer, null, 'Albedo Pass');
 scenePass.clearColor = [0.0, 0.0, 0.0, 1.0];
 renderQueue.addPass(scenePass);
@@ -188,30 +235,27 @@ pixelArtPass.setInputBuffers(lightingBuffer.texture, depthBuffer.texture, normal
 renderQueue.addPass(pixelArtPass);
 
 // 6. Outline Pass (Post-Processing)
-const outlinePass = new OutlinePass(gl, canvas.width, canvas.height, matOutline, outlineBuffer, 'Outline Pass');
-outlinePass.setInputBuffers(depthBuffer.texture, normalBuffer.texture);
-outlinePass.clearColor = [0.0   , 0.0, 0.0, 0.0];
-renderQueue.addPass(outlinePass);
+// const outlinePass = new OutlinePass(gl, canvas.width, canvas.height, matOutline, outlineBuffer, 'Outline Pass');
+// outlinePass.setInputBuffers(depthBuffer.texture, normalBuffer.texture);
+// outlinePass.clearColor = [0.0   , 0.0, 0.0, 0.0];
+// renderQueue.addPass(outlinePass);
 
 // 6. Viewport Pass
 const viewportPass = new ViewportPass(gl, canvas.width, canvas.height, matScreen);
 viewportPass.setBuffer('Final', pixelArtBuffer.texture);
 viewportPass.setBuffer('Pixel', pixelArtBuffer.texture);
-viewportPass.setBuffer('Outline', outlineBuffer.texture);
+// viewportPass.setBuffer('Outline', outlineBuffer.texture);
 viewportPass.setBuffer('Lit', lightingBuffer.texture);
 viewportPass.setBuffer('Albedo', sceneBuffer.texture);
 viewportPass.setBuffer('Normal', normalBuffer.texture);
 viewportPass.setBuffer('Depth', depthBuffer.texture);
 viewportPass.setBuffer('Shadow', shadowBuffer.texture);
-
-
 // Assign critical camera overrides for pipeline automatization
 shadowPass.camera = lightCamera;
 lightingPass.lightCamera = lightCamera;
-
 renderQueue.addPass(viewportPass);
 
-// Resize System
+
 function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -236,7 +280,6 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas(); // Initial call
 
-
 // Perspective setup
 const aspect = canvas.width / canvas.height;
 camera.setPerspective(45 * Math.PI / 180, aspect, 0.1, 100.0);
@@ -245,62 +288,61 @@ camera.transform.rotation.y = Math.PI / 4;
 camera.transform.rotation.x = -Math.asin(1 / Math.sqrt(3));
 
 let meshObj = null;
+let waterObj = null
 let floorObj = null;
 
 // Load Cube
 ObjLoader.load(gl, './Assets/3D/Cube.obj').then(mesh => {
-    meshObj = new GameObject(renderer, matRed, mesh, 'Monkey'); // Changed to Monkey
+    meshObj = new GameObject(renderer, matRed, mesh, 'Cube'); 
     meshObj.transform.position.set(0, 2, 0);
     meshObj.transform.position.set(10, 2, 10);
     meshObj.transform.scale.set(1.3, 1.3, 1.3);
     scene.push(meshObj);
 
-    // Init Editor once objects are loaded (or init empty and refresh)
-    // if (floorObj) initEditor();
 });
 
-ObjLoader.load(gl, './Assets/3D/Terrain.obj').then(mesh => {
-    floorObj = new GameObject(renderer, matNoise, mesh, 'Floor');
+ObjLoader.load(gl, './Assets/3D/Floor.obj').then(mesh => {
+    waterObj = new GameObject(renderer, matRed, mesh, 'Water'); 
+    scene.push(waterObj);
+});
+
+
+ObjLoader.load(gl, './Assets/3D/DetailedPlane.obj').then(mesh => {
+    floorObj = new GameObject(renderer, matDisplacement, mesh, 'Floor');
+    floorObj.depthMaterial = matDisplacementDepth;
+    floorObj.normalMaterial = matDisplacementNormal;
     floorObj.transform.position.set(0, -5, 0);
-    floorObj.transform.scale.set(1.3, 1.3, 1.3);
+    floorObj.transform.scale.set(20, 20, 20);
     scene.push(floorObj);
 
-    // if (meshObj) initEditor();
 });
 
 
-// Viewport System
-// x, y, w, h are normalized (0.0 to 1.0)
 const viewports = [
     { x: 0.0, y: 0.0, w: 1.0, h: 1.0, pass: 'Final' } // Default Fullscreen
 ];
 
-// Set initial viewports
 viewportPass.setViewports(viewports);
 
 
-// Init Editor
 const game = {
     gl,
     scene,
     camera,
     renderer,
     renderQueue,
-    materials, // exposed for Material Window later,
-    viewportPass // Expos viewportPass to access available buffers
+    materials, 
+    viewportPass
 };
 
-// Add setter for viewports
 game.setViewports = (mode) => {
     viewports[0].pass = mode; 
 };
 
-// Initialize the Editor
 const editor = new Editor(game);
 
 const cameraController = new CameraController(camera, canvas);
 
-// Profiler Setup
 const profiler = ProfilerInstrumenter.attach(renderQueue, renderer);
 
 function loop(now) {
@@ -317,9 +359,11 @@ function loop(now) {
     }
 
     // Update noise time
-    matNoise.setUniforms({ 
+    matDisplacement.setUniforms({ 
         'uTime': Time.time,
     });
+    matDisplacementDepth.setUniforms({ 'uTime': Time.time });
+    matDisplacementNormal.setUniforms({ 'uTime': Time.time });
 
     // --- Update Lights & Shadow Camera ---
     // Read directly from material so editor changes reflect instantly

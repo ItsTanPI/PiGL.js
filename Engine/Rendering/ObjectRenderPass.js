@@ -43,7 +43,15 @@ export class ObjectRenderPass extends RenderPass {
         if (scene && Array.isArray(scene)) {
             for (const obj of scene) {
                 if (this.materialOverride) {
-                    obj.render(renderCamera, this.renderTarget, this.materialOverride);
+                    let materialToUse = this.materialOverride;
+                    if (this.name === 'Depth Pass' && obj.depthMaterial) {
+                        materialToUse = obj.depthMaterial;
+                    } else if (this.name === 'Normal Pass' && obj.normalMaterial) {
+                        materialToUse = obj.normalMaterial;
+                    } else if (this.name === 'Shadow Pass' && obj.shadowMaterial) {
+                        materialToUse = obj.shadowMaterial;
+                    }
+                    obj.render(renderCamera, this.renderTarget, materialToUse);
                 } else {
                     obj.render(renderCamera, this.renderTarget);
                 }
