@@ -1,9 +1,9 @@
-precision lowp float;
+precision highp float;
 
-varying lowp vec2 vTexCoord;
+varying highp vec2 vTexCoord;
 
-uniform lowp float uTime; 
-uniform lowp float uSpeed; 
+uniform highp float uTime; 
+uniform highp float uSpeed; 
 uniform vec2 uWind;  
 uniform float uScale;
 

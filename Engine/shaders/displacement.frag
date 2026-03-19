@@ -1,7 +1,7 @@
-precision highp float; // Upgraded to mediump to prevent precision artifacts
+precision lowp float;
 
-varying vec2 vTexCoord;
-varying float vNoise;
+varying lowp vec2 vTexCoord;
+varying lowp float vNoise;
 varying vec3 vWorldPos;
 
 uniform vec3 uColor1; 
@@ -9,13 +9,17 @@ uniform vec3 uColor2;
 uniform vec3 uColor3; 
 
 void main() {
-    // Step 1: Clamp noise to ensure it stays in 0.0 - 1.0 range
     float n = clamp(vNoise, 0.0, 1.0);
 
-    // Step 2: Use smooth interpolation instead of if/else
-    // This creates a smooth transition across all three colors
-    vec3 col1to2 = mix(uColor1, uColor2, smoothstep(0.0, 0.5, n));
-    vec3 finalColor = mix(col1to2, uColor3, smoothstep(0.5, 1.0, n));
+    // 1. Create a smooth transition for the first blend (Deep to Shallow)
+    // This blend happens between 0.0 and 0.6
+    float blend1 = smoothstep(0.0, 0.6, n);
+    vec3 waterBase = mix(uColor1, uColor2, blend1);
+
+    // 2. Create a smooth transition for the second blend (Shallow to Foam)
+    // This blend starts late (at 0.7) and ends at the peak (1.0)
+    float blend2 = smoothstep(0.7, 1.0, n);
+    vec3 finalColor = mix(waterBase, uColor3, blend2);
 
     gl_FragColor = vec4(finalColor, 1.0);
 }

@@ -1,4 +1,4 @@
-precision mediump float;
+precision highp float;
 
 varying vec2 vTexCoord;
 
@@ -12,7 +12,7 @@ uniform vec2 uResolution;
 
 // Fine-tuned thresholds
 const float depthThreshold = 0.05;
-const float normalThreshold = 0.5;
+const float normalThreshold = 0.2;
 
 // Color modifiers for edges
 const float silhouetteDarkening = 0.2; // Very dark for outer edges

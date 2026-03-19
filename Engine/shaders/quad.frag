@@ -1,5 +1,6 @@
-varying lowp vec2 vTexCoord;
-uniform lowp vec4 uColor;
+precision highp float;
+varying highp vec2 vTexCoord;
+uniform highp vec4 uColor;
 
 void main() {
     gl_FragColor = uColor;

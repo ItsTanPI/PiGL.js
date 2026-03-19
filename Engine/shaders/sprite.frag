@@ -1,6 +1,6 @@
-precision mediump float;
+precision highp float;
 
-varying lowp vec2 vTexCoord;
+varying highp vec2 vTexCoord;
 
 uniform sampler2D uMainTex;
 uniform vec4 uColor;

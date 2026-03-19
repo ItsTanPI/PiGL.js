@@ -1,4 +1,4 @@
-precision mediump float;
+precision highp float;
 
 varying vec2 vTexCoord;
 
@@ -32,8 +32,8 @@ void main() {
 
     // Sun
     float sun = max(dot(dir, normalize(uLightDir)), 0.0);
-    float sunDisk = pow(sun, 1000.0) * 2.0; // Sharp disk
-    float sunGlow = pow(sun, 4.0) * 0.5;    // Soft Glow
+    float sunDisk = pow(sun, 3000.0) * 2.0; // Sharp disk
+    float sunGlow = pow(sun, 2.0) * 0.2;    // Soft Glow
 
     // Gradient
     float t = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0); // -1..1 -> 0..1

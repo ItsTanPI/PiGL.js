@@ -77,6 +77,11 @@ const shaderPixelArt = new Shader(gl, screenVs, pixelArtFs);
 
 const matWhite = new Material(shaderMain, 'White');
 const matRed = new Material(shaderMain, 'Red');
+const matGrey = new Material(shaderMain, 'Grey');
+const matBrown = new Material(shaderMain, 'Brown');
+
+
+
 const matNoise = new Material(shaderNoise, 'Noise');
 const matDisplacement = new Material(shaderDisplacemet, 'Displacement');
 
@@ -98,21 +103,21 @@ const matScreen = new Material(shaderScreen, 'Screen'); // Final Screen Material
 
 
 matPixelArt.setUniforms({
-    'uPixelSize': 4.0,
-    'uColorLevels': 64.0
+    'uPixelSize': 2.0,
+    'uColorLevels': 128.0
 });
 
 // Set Initial Lighting to ensure it's not black
 matLighting.setUniforms({
-    'uLightDir': [0.5, 0.8, 0.2],
+    'uLightDir': [1, 0.2, 10],
     'uLightColor': [1.0, 1.0, 0.9],
-    'uAmbient': 0.1
+    'uAmbient': 0.5
 });
 
 matSkybox.setUniforms({
-    'uTopColor': [0.1, 0.4, 0.9],
-    'uBottomColor': [0.8, 0.8, 0.9],
-    'uSunColor': [1.0, 1.0, 0.8]
+    'uTopColor': 	[0.21, 0.31, 0.49],
+    'uBottomColor': 	[1.00, 0.51, 0.32],
+    'uSunColor': [1.00, 0.84, 0.00]
 });
 
 
@@ -126,6 +131,9 @@ matOutline.setUniforms({
 
 matWhite.setUniforms({ 'uColor': [1.0, 1.0, 1.0, 1.0] });
 matRed.setUniforms({ 'uColor': [1.0, 0.0, 0.0, 1.0] });
+matGrey.setUniforms({ 'uColor': [0.4, 0.4, 0.4, 1.0] });
+matBrown.setUniforms({ 'uColor': [0.804, 0.498, 0.196, 1.0] });
+
 
 matNoise.setUniforms({ 
     'uColor': [1.0, 1.0, 1.0, 1.0],
@@ -135,25 +143,24 @@ matNoise.setUniforms({
     
     'uColor1': [0.3, 0.38, 0.2], 
     'uColor2': [0.35, 0.55, 0.15], 
-    'uColor3': [0.75, 0.85, 0.35]
+    'uColor3': [0.85, 0.85, 0.85]
 });
 
 const waterConfig = {
-    // Shared Physics & Movement
-    uWind: [0.05, 0.02],
-    uSpeed: 10.2,
-    uScale: 0.05,
-    udisplacement: 0.3, 
-    uSteepness: 0.15,
-    uWavelength: 20.0,
-    uTime: 0, // This will be updated in your render loop
-
-    // Aesthetic Colors
-    uColor1: [0.0, 0.4, 0.5],
-    uColor2: [0.0, 0.2, 0.4],
-    uColor3: [0.8, 1.0, 1.0],
-    uColor: [1.0, 1.0, 1.0, 1.0]
+    // Movement & Shape
+    uWind: [0.05, 0.0],
+    uSpeed: 5.0,           // Calm speed
+    uScale: 0.08,          // Ripple frequency
+    udisplacement: 0.75,    // Height of the noise ripples
+    uSteepness: 0.2,       // Height of the Gerstner waves
+    uWavelength: 25.0,     // Distance between waves
+    
+    // Natural Water Colors
+    uColor1: [0.094, 0.271, 0.494], // Deep Navy (The pits/troughs)
+    uColor2: [0.196, 0.404, 0.624],  // Tropical Turquoise (The slopes)
+    uColor3: [0.8, 0.8, 1.0],   // Sea Foam White (The crests)
 };
+
 
 // List of all materials that need these exact parameters
 const waterMaterials = [
@@ -162,17 +169,8 @@ const waterMaterials = [
     matDisplacementNormal
 ];
 
-
-// To update all materials at once
 waterMaterials.forEach(mat => {
     mat.setUniforms(waterConfig);
-});
-
-
-matLighting.setUniforms({
-    'uLightDir': [0.5, 0.5, 0.3],
-    'uLightColor': [1.0, 1.0, 0.9],
-    'uAmbient': 0.3
 });
 
 // Register Materials for Editor
@@ -187,7 +185,8 @@ const materials = {
     'Depth': matDepth,
     'Normal': matNormal,
     'Outline': matOutline,
-    'Screen': matScreen
+    'Screen': matScreen,
+    'displacemetn' : matDisplacement
 };
 
 
@@ -283,27 +282,59 @@ resizeCanvas(); // Initial call
 // Perspective setup
 const aspect = canvas.width / canvas.height;
 camera.setPerspective(45 * Math.PI / 180, aspect, 0.1, 100.0);
-camera.transform.position.set(20, 10, 20);
-camera.transform.rotation.y = Math.PI / 4; 
-camera.transform.rotation.x = -Math.asin(1 / Math.sqrt(3));
+camera.transform.position.set(-8.04, -0.21, -18.09);
+camera.transform.rotation.set(-0.01, -9.35, 0.00);
+// camera.transform.rotation.y = Math.PI / 4; 
+// camera.transform.rotation.x = -Math.asin(1 / Math.sqrt(3));
 
 let meshObj = null;
 let waterObj = null
 let floorObj = null;
+let sandObj = null;
+let Clouds = null;
+
 
 // Load Cube
-ObjLoader.load(gl, './Assets/3D/Cube.obj').then(mesh => {
-    meshObj = new GameObject(renderer, matRed, mesh, 'Cube'); 
-    meshObj.transform.position.set(0, 2, 0);
-    meshObj.transform.position.set(10, 2, 10);
-    meshObj.transform.scale.set(1.3, 1.3, 1.3);
+ObjLoader.load(gl, './Assets/3D/LightHouse.obj').then(mesh => {
+    meshObj = new GameObject(renderer, matWhite, mesh, 'Cube'); 
+    // meshObj.transform.position.set(0, 2, 0);
+    meshObj.transform.position.set(0, -7, 0);
+    meshObj.transform.scale.set(50, 50, 50);
     scene.push(meshObj);
 
 });
 
-ObjLoader.load(gl, './Assets/3D/Floor.obj').then(mesh => {
+ObjLoader.load(gl, './Assets/3D/LightHouseRed.obj').then(mesh => {
     waterObj = new GameObject(renderer, matRed, mesh, 'Water'); 
+    waterObj.transform.position.set(0, -7, 0);
+    waterObj.transform.scale.set(50, 50, 50);
     scene.push(waterObj);
+});
+
+//LightHouseBrown.obj
+let waterObj1 = null
+ObjLoader.load(gl, './Assets/3D/LightHouseBrown.obj').then(mesh => {
+    waterObj1 = new GameObject(renderer, matBrown, mesh, 'Water'); 
+    waterObj1.transform.position.set(0, -7, 0);
+    waterObj1.transform.scale.set(50, 50, 50);
+    scene.push(waterObj1);
+});
+
+
+ObjLoader.load(gl, './Assets/3D/Clouds.obj').then(mesh => {
+    Clouds = new GameObject(renderer, matWhite, mesh, 'Clouds');
+    Clouds.transform.position.set(0, -7, 0);
+    Clouds.transform.scale.set(50, 50, 50);
+    scene.push(Clouds);
+
+});
+
+ObjLoader.load(gl, './Assets/3D/DetailedPlaneSand.obj').then(mesh => {
+    sandObj = new GameObject(renderer, matGrey, mesh, 'Sand');
+    sandObj.transform.position.set(0, -7, 0);
+    sandObj.transform.scale.set(50, 50, 50);
+    scene.push(sandObj);
+
 });
 
 
@@ -312,7 +343,7 @@ ObjLoader.load(gl, './Assets/3D/DetailedPlane.obj').then(mesh => {
     floorObj.depthMaterial = matDisplacementDepth;
     floorObj.normalMaterial = matDisplacementNormal;
     floorObj.transform.position.set(0, -5, 0);
-    floorObj.transform.scale.set(20, 20, 20);
+    floorObj.transform.scale.set(50, 50, 50);
     scene.push(floorObj);
 
 });
@@ -355,7 +386,7 @@ function loop(now) {
     if (meshObj) {
         // Spin the cube
         // meshObj.transform.rotation.x += 1.0 * Time.deltaTime;
-        meshObj.transform.rotation.y += 1.0 * Time.deltaTime;
+        // meshObj.transform.rotation.y += 1.0 * Time.deltaTime;
     }
 
     // Update noise time

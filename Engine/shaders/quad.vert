@@ -5,7 +5,7 @@ uniform mat4 uViewMatrix;
 uniform mat4 uProjectionMatrix;
 uniform mat4 uModelMatrix;
 
-varying lowp vec2 vTexCoord;
+varying highp vec2 vTexCoord;
 
 void main() {
     gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * aVertexPosition;

@@ -11,18 +11,17 @@ uniform vec2 uWind;
 uniform float uScale;
 uniform float udisplacement;
 
-// New uniforms for Gerstner control
-uniform float uSteepness;
-uniform float uWavelength;
 
 varying lowp vec2 vTexCoord;
 varying lowp float vNoise;
 varying vec3 vWorldPos;
 
+// Noise functions must be in both or shared via an include
 vec2 hash(vec2 p) {
     p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
     return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
 }
+
 
 float gradientNoise(vec2 p) {
     vec2 i = floor(p);
@@ -37,34 +36,23 @@ float gradientNoise(vec2 p) {
 
 void main() {
     vec4 worldPos = uModelMatrix * aVertexPosition;
-    float time = uTime * uSpeed;
     
-    // --- LAYER 1: Gerstner Wave (Structural) ---
-    vec2 dir = normalize(uWind);
-    float k = 2.0 * 3.14159 / uWavelength;
-    float f = k * (dot(dir, worldPos.xz) - time);
-    float a = uSteepness / k;
-
-    // Gerstner displacements
-    float gX = dir.x * (a * cos(f));
-    float gY = a * sin(f);
-    float gZ = dir.y * (a * cos(f));
-
-    // --- LAYER 2: Your Gradient Noise (Detail) ---
+    float time = uTime * uSpeed;
     vec2 movement = uWind * time;
+
+    // Use World Position XZ for noise so displacement is seamless across objects
     vec2 noiseCoord = worldPos.xz * uScale;
+
     float n1 = gradientNoise((noiseCoord * 0.25) + (movement * 0.3));
     float n2 = gradientNoise((noiseCoord * 1.5) + movement);
     vec2 jitterMovement = vec2(movement.y, -movement.x) * 1.5; 
     float n3 = gradientNoise((noiseCoord * 4.0) + jitterMovement);
-    
+
     float n = (n1 * 0.2) + (n2 * 0.5) + (n3 * 0.3);
     vNoise = smoothstep(-0.4, 0.4, n);
 
-    // Combine: Gerstner shape + Noise displacement
-    worldPos.x += gX;
-    worldPos.z += gZ;
-    worldPos.y += gY + (vNoise * udisplacement);
+    // Displace the Y position based on noise
+    worldPos.y += vNoise * udisplacement; // Adjust '2.0' for displacement strength
 
     gl_Position = uProjectionMatrix * uViewMatrix * worldPos;
     

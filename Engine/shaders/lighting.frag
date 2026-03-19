@@ -6,35 +6,25 @@ uniform sampler2D uSceneTexture;
 uniform sampler2D uNormalTexture;
 uniform sampler2D uDepthTexture;
 
-// Shadows
+// Shadows & Transform
 uniform sampler2D uShadowMap;
 uniform mat4 uInverseViewProjection;
 uniform mat4 uLightSpaceMatrix;
+uniform vec3 uCameraPos; // You need to pass this uniform from JS
 
 uniform vec3 uLightDir;
 uniform vec3 uLightColor;
 uniform float uAmbient;
 
-// Reconstruct World Position from NDC Depth
+// --- SPECULAR CONSTANTS ---
+const float SPECULAR_STRENGTH = 0.5;
+const float SHININESS = 32.0;
+
 vec3 getWorldPosition(vec2 uv, float depth) {
-    // Current Depth is 0..1 (from linear depth tex)
-    
-    // We need to un-linearize to get View Space Depth or NDC Z
-    // depth = linearDepth / far
-    // linearDepth = depth * far
-    // linearDepth = (2 * near * far) / (far + near - z_ndc * (far - near))
-    
-    // Solve for z_ndc:
-    // far + near - z_ndc * (far - near) = (2 * near * far) / linearDepth
-    // z_ndc * (far - near) = far + near - (2 * near * far) / linearDepth
-    // z_ndc = (far + near - (2 * near * far) / linearDepth) / (far - near)
-    
     float near = 0.1;
     float far = 100.0;
-    
     float linearDepth = depth * far;
     
-    // Avoid division by zero if depth is 0
     float z_ndc = 1.0; 
     if (linearDepth > 0.0001) {
         z_ndc = (far + near - (2.0 * near * far) / linearDepth) / (far - near);
@@ -47,30 +37,18 @@ vec3 getWorldPosition(vec2 uv, float depth) {
 }
 
 float calculateShadow(vec3 worldPos) {
-    // Transform World Position to Light Space
     vec4 posLightSpace = uLightSpaceMatrix * vec4(worldPos, 1.0);
     vec3 projCoords = posLightSpace.xyz / posLightSpace.w;
-    
-    // Transform to [0,1] range for texture lookup
     projCoords = projCoords * 0.5 + 0.5;
     
-    // Check if outside light frustum
     if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0) 
         return 0.0;
 
-    // Get closest depth from light's perspective (0..1)
     float closestDepth = texture2D(uShadowMap, projCoords.xy).r; 
-    
-    // Current depth value
     float currentDepth = projCoords.z;
-    
-    // Bias to prevent shadow acne
-    // Simple constant bias for now
     float bias = 0.005; 
     
-    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
-    
-    return shadow;
+    return currentDepth - bias > closestDepth ? 1.0 : 0.0;
 }
 
 void main() {
@@ -81,24 +59,31 @@ void main() {
     // 1. Reconstruct World Position
     vec3 worldPos = getWorldPosition(vUv, depthVal);
 
-    // 2. Decode Normal
+    // 2. Vectors
     vec3 N = normalize(normalOrig * 2.0 - 1.0);
-    
-    // 3. Lighting Vectors
     vec3 L = normalize(uLightDir);
+    vec3 V = normalize(uCameraPos - worldPos); // View Direction
+    vec3 H = normalize(L + V);                // Halfway Vector (Blinn-Phong)
 
-    // 4. Diffuse Component
+    // 3. Diffuse Component
     float diff = max(dot(N, L), 0.0);
+    
+    // 4. Specular Component
+    // Only calculate specular if the surface is facing the light (diff > 0)
+    float spec = pow(max(dot(N, H), 0.0), SHININESS);
+    vec3 specular = SPECULAR_STRENGTH * spec * uLightColor;
     
     // 5. Shadow Calculation
     float shadow = calculateShadow(worldPos);
     
-    // 6. Final Color: (Ambient + (1.0 - shadow) * Diffuse) * Albedo
-    // Only apply shadow to diffuse light
+    // 6. Final Radiance Calculation
     vec3 ambient = uAmbient * uLightColor;
     vec3 diffuse = diff * uLightColor;
     
-    vec3 radiance = (ambient + (1.0 - shadow) * diffuse) * sceneColor.rgb;
+    // Shadow affects both Diffuse and Specular, but not Ambient
+    vec3 lightContribution = (1.0 - shadow) * (diffuse + specular);
+    
+    vec3 radiance = (ambient + lightContribution) * sceneColor.rgb;
 
     gl_FragColor = vec4(radiance, sceneColor.a);
 }
