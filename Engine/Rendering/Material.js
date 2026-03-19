@@ -28,22 +28,42 @@ export class Material {
     }
 
     setFloat(name, value) {
-        this.uniforms[name] = { type: '1f', value: value };
+        if (this.uniforms[name] && this.uniforms[name].type === '1f') {
+            this.uniforms[name].value = value;
+        } else {
+            this.uniforms[name] = { type: '1f', value: value };
+        }
     }
 
     setVec2(name, x, y) {
-        this.uniforms[name] = { type: '2fv', value: new Float32Array([x, y]) };
+        if (this.uniforms[name] && this.uniforms[name].type === '2fv') {
+            const v = this.uniforms[name].value;
+            v[0] = x; v[1] = y;
+        } else {
+            this.uniforms[name] = { type: '2fv', value: new Float32Array([x, y]) };
+        }
     }
 
     setVec3(name, x, y, z) {
-        this.uniforms[name] = { type: '3fv', value: new Float32Array([x, y, z]) };
+        if (this.uniforms[name] && this.uniforms[name].type === '3fv') {
+            const v = this.uniforms[name].value;
+            v[0] = x; v[1] = y; v[2] = z;
+        } else {
+            this.uniforms[name] = { type: '3fv', value: new Float32Array([x, y, z]) };
+        }
     }
 
     setVec4(name, x, y, z, w) {
-        this.uniforms[name] = { type: '4fv', value: new Float32Array([x, y, z, w]) };
+        if (this.uniforms[name] && this.uniforms[name].type === '4fv') {
+            const v = this.uniforms[name].value;
+            v[0] = x; v[1] = y; v[2] = z; v[3] = w;
+        } else {
+            this.uniforms[name] = { type: '4fv', value: new Float32Array([x, y, z, w]) };
+        }
     }
 
     setMat4(name, value) {
+        // Mat4 is usually overwritten, not mutated in place
         this.uniforms[name] = { type: 'Matrix4fv', value: value };
     }
 

@@ -23,6 +23,7 @@ export class ScreenRenderPass extends RenderPass {
     }
 
     execute(renderer, scene, camera) {
+        const startTime = performance.now();
         renderer.resetDrawCalls();
 
         if (this.renderTarget) {
@@ -58,5 +59,6 @@ export class ScreenRenderPass extends RenderPass {
         const stats = renderer.resetDrawCalls();
         this.drawCount = stats.count;
         this.drawDetails = stats.details;
+        this.executionTime = performance.now() - startTime;
     }
 }

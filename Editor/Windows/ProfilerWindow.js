@@ -56,6 +56,7 @@ export class ProfilerWindow {
             game.renderQueue.passes.forEach(pass => {
                 const folder = this.passesFolder.addFolder(pass.name || 'Pass');
                 folder.add(pass, 'drawCount').name('Draw Calls').disable().listen();
+                folder.add(pass, 'executionTime').name('Perf (ms)').disable().listen();
                 folder.add(pass, 'enabled').name('Active').disable().listen();
             });
         }

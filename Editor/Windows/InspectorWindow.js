@@ -43,44 +43,32 @@ export class InspectorWindow {
             const folder = this.gui.addFolder(`Transform: ${name}`);
             
             const pos = folder.addFolder('Position');
-            pos.add(t.position, 'x').step(0.1).name('X');
-            pos.add(t.position, 'y').step(0.1).name('Y');
-            pos.add(t.position, 'z').step(0.1).name('Z');
+            pos.add(t.position, 'x').step(0.1).listen().name('X');
+            pos.add(t.position, 'y').step(0.1).listen().name('Y');
+            pos.add(t.position, 'z').step(0.1).listen().name('Z');
             
             const rot = folder.addFolder('Rotation');
-            rot.add(t.rotation, 'x').step(0.1).name('X');
-            rot.add(t.rotation, 'y').step(0.1).name('Y');
-            rot.add(t.rotation, 'z').step(0.1).name('Z');
+            rot.add(t.rotation, 'x').step(0.1).listen().name('X');
+            rot.add(t.rotation, 'y').step(0.1).listen().name('Y');
+            rot.add(t.rotation, 'z').step(0.1).listen().name('Z');
 
             const sca = folder.addFolder('Scale');
-            sca.add(t.scale, 'x').step(0.1).name('X');
-            sca.add(t.scale, 'y').step(0.1).name('Y');
-            sca.add(t.scale, 'z').step(0.1).name('Z');
+            sca.add(t.scale, 'x').step(0.1).listen().name('X');
+            sca.add(t.scale, 'y').step(0.1).listen().name('Y');
+            sca.add(t.scale, 'z').step(0.1).listen().name('Z');
         }
 
         // Material properties
         if (obj.material) {
             const matFolder = this.gui.addFolder('Material');
-            matFolder.add(obj.material, 'name').name('Material Name').disable();
+            matFolder.add(obj.material, 'name').name('Material Name').disable().listen();
             
             matFolder.add({ select: () => {
                 if (this.editor.windows.material) {
                     this.editor.windows.material.inspect(obj.material);
+                    this.editor.windows.material.container.parentElement.style.display = 'flex'; // Open window
                 }
             }}, 'select').name('Open in Material Editor');
-
-            if (obj.material.uniforms && obj.material.uniforms.uColor) {
-               const color = obj.material.uniforms.uColor.value;
-               const proxy = {
-                    get color() { return [color[0], color[1], color[2]]; },
-                    set color(v) { 
-                        color[0] = v[0]; 
-                        color[1] = v[1]; 
-                        color[2] = v[2]; 
-                    }
-                };
-               matFolder.addColor(proxy, 'color').name('uColor');
-            }
         }
     }
 }

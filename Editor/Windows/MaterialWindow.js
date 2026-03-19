@@ -27,6 +27,7 @@ export class MaterialWindow {
         // Clear all
         const children = [...this.gui.children];
         children.forEach(c => c.destroy());
+        this.propertyFolder = null; // Important: Clear reference to destroyed folder
 
         const materials = this.editor.game.materials || {};
         const matFolder = this.gui.addFolder('Project Materials');
@@ -49,39 +50,69 @@ export class MaterialWindow {
     }
 
     drawMaterialProperties(material) {
-        const propFolder = this.gui.addFolder(`Properties: ${material.name || 'Unnamed'}`);
+        let folder;
+        if (!this.propertyFolder) {
+            folder = this.gui.addFolder(`Properties: ${material.name || 'Unnamed'}`);
+            this.propertyFolder = folder;
+        } else {
+            folder = this.propertyFolder;
+            const children = [...folder.children];
+            children.forEach(c => c.destroy());
+            folder.title(`Properties: ${material.name || 'Unnamed'}`);
+        }
         
         if (!material.uniforms) return;
 
         for (const name in material.uniforms) {
             const uniform = material.uniforms[name];
             const value = uniform.value;
-            const type = uniform.type;
+            const type = uniform.type; // Access type if needed
 
-            // Simple logic to determine how to show the uniform
+            // Handle Arrays (Vectors/Colors)
             if (Array.isArray(value) || value instanceof Float32Array) {
-                if (value.length === 3 || value.length === 4) {
-                    // Likely a color or vector
-                    const proxy = {
-                        get color() { return [value[0], value[1], value[2]]; },
-                        set color(v) { 
-                            value[0] = v[0]; 
-                            value[1] = v[1]; 
-                            value[2] = v[2]; 
-                        }
-                    };
-                    propFolder.addColor(proxy, 'color').name(name);
+                // Color Helper (heuristic: name contains "Color" or length 3/4)
+                const isColor = name.toLowerCase().includes('color');
+                
+                if (isColor && (value.length === 3 || value.length === 4)) {
+                    // Bind directly to the uniform object's 'value' property
+                    // This ensures lil-gui mutates the actual Float32Array used by the renderer
+                    folder.addColor(uniform, 'value').name(name).listen();
                 } else {
-                    // Generic array/vector
-                    const vecFolder = propFolder.addFolder(name);
+                    // Vector Breakdown
+                    const vecFolder = folder.addFolder(name);
+                    const labels = ['x', 'y', 'z', 'w'];
                     for (let i = 0; i < value.length; i++) {
-                        vecFolder.add(value, i).step(0.01).name(`[${i}]`);
+                        // Use a proxy to bind directly to the index
+                        const proxy = {
+                            get val() { return value[i]; },
+                            set val(v) { value[i] = v; }
+                        };
+                        vecFolder.add(proxy, 'val').step(0.01).name(labels[i] || `[${i}]`).listen();
                     }
                 }
-            } else if (typeof value === 'number') {
-                propFolder.add(material.uniforms[name], 'value').step(0.01).name(name);
-            } else if (value instanceof WebGLTexture) {
-                propFolder.add({ info: 'Texture Bound' }, 'info').name(name).disable();
+            } 
+            // Handle Single Numbers (Floats)
+            else if (typeof value === 'number') {
+                const proxy = {
+                    get val() { return uniform.value; }, // Access from source object
+                    set val(v) { uniform.value = v; }
+                };
+                
+                // Try to guess range based on name
+                let controller = folder.add(proxy, 'val').name(name);
+                
+                // Heuristics for sliders
+                if (name.toLowerCase().includes('threshold') || name.toLowerCase().includes('factor')) {
+                    controller = controller.min(0).max(1).step(0.01);
+                } else {
+                    controller = controller.step(0.01);
+                }
+                
+                controller.listen();
+            } 
+            // Handle Textures
+            else if (value instanceof WebGLTexture) {
+                folder.add({ info: 'Texture' }, 'info').name(name).disable();
             }
         }
     }

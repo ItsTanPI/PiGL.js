@@ -13,6 +13,90 @@ export class WindowManager {
             fontFamily: 'sans-serif'
         });
         document.body.appendChild(this.container);
+
+        this.initNavBar();
+    }
+
+    initNavBar() {
+        this.navBar = document.createElement('div');
+        this.navBar.id = 'editor-navbar';
+        Object.assign(this.navBar.style, {
+            position: 'absolute',
+            top: '10px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            gap: '5px',
+            background: 'rgba(26, 26, 26, 0.9)',
+            padding: '5px 10px',
+            borderRadius: '20px',
+            border: '1px solid #333',
+            pointerEvents: 'auto',
+            boxShadow: '0 4px 10px rgba(0,0,0,0.5)',
+            zIndex: '10001'
+        });
+        this.container.appendChild(this.navBar);
+        this.addDragLogic(this.navBar, this.navBar); // Make navbar itself draggable
+    }
+
+    addNavItem(title, win) {
+        const btn = document.createElement('button');
+        btn.innerText = title;
+        Object.assign(btn.style, {
+            background: '#252525',
+            color: '#ccc',
+            border: '1px solid #444',
+            padding: '4px 12px',
+            borderRadius: '15px',
+            fontSize: '10px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            transition: 'background 0.2s',
+            outline: 'none'
+        });
+        btn.onclick = () => {
+            const isHidden = win.style.display === 'none';
+            win.style.display = isHidden ? 'flex' : 'none';
+            btn.style.background = isHidden ? '#444' : '#252525';
+        };
+        btn.onmouseover = () => { if (win.style.display === 'none') btn.style.background = '#333'; };
+        btn.onmouseout = () => { if (win.style.display === 'none') btn.style.background = '#252525'; };
+        
+        // Initial state
+        btn.style.background = win.style.display === 'none' ? '#252525' : '#444';
+
+        this.navBar.appendChild(btn);
+    }
+
+    addNavSelect(options, onChange) {
+        const select = document.createElement('select');
+        Object.assign(select.style, {
+            background: '#252525',
+            color: '#ccc',
+            border: '1px solid #444',
+            padding: '4px 8px',
+            borderRadius: '15px',
+            fontSize: '10px',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            outline: 'none',
+            marginLeft: '10px'
+        });
+
+        options.forEach(opt => {
+            const el = document.createElement('option');
+            el.value = opt;
+            el.text = opt;
+            select.appendChild(el);
+        });
+
+        select.onchange = (e) => onChange(e.target.value);
+        this.navBar.appendChild(select);
+    }
+
+    toggleVisibility() {
+        const isHidden = this.container.style.display === 'none';
+        this.container.style.display = isHidden ? 'block' : 'none';
     }
 
     createWindow(title, x, y, width, height) {
@@ -43,8 +127,25 @@ export class WindowManager {
             cursor: 'move',
             userSelect: 'none',
             borderBottom: '1px solid #333',
-            textTransform: 'uppercase'
+            textTransform: 'uppercase',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center'
         });
+
+        const closeBtn = document.createElement('span');
+        closeBtn.innerHTML = '×';
+        Object.assign(closeBtn.style, {
+            cursor: 'pointer',
+            fontSize: '16px',
+            lineHeight: '1',
+            padding: '0 4px',
+            color: '#888'
+        });
+        closeBtn.onclick = () => { win.style.display = 'none'; };
+        closeBtn.onmouseover = () => { closeBtn.style.color = '#fff'; };
+        closeBtn.onmouseout = () => { closeBtn.style.color = '#888'; };
+        header.appendChild(closeBtn);
 
         const content = document.createElement('div');
         content.classList.add('window-content');
@@ -77,7 +178,7 @@ export class WindowManager {
         this.addDragLogic(win, header);
         this.addResizeLogic(win, resizer);
         
-        return content;
+        return { content, window: win };
     }
 
     addResizeLogic(win, resizer) {
@@ -116,6 +217,7 @@ export class WindowManager {
         let startX, startY, initialLeft, initialTop;
 
         header.addEventListener('mousedown', (e) => {
+            if (e.target.tagName === 'BUTTON') return; // Don't drag if clicking a button (for navbar)
             isDragging = true;
             startX = e.clientX;
             startY = e.clientY;
@@ -124,6 +226,13 @@ export class WindowManager {
             document.addEventListener('mousemove', onMove);
             document.addEventListener('mouseup', onUp);
             win.style.zIndex = '10000';
+            
+            if (win === this.navBar) win.style.zIndex = '10001';
+            if (win !== this.navBar) {
+                // Keep navbar on top but bring this window to front of other windows
+                this.container.querySelectorAll('.window').forEach(w => w.style.zIndex = '9999');
+                win.style.zIndex = '10000';
+            }
         });
 
         const onMove = (e) => {

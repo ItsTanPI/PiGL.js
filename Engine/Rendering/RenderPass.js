@@ -6,6 +6,7 @@ export class RenderPass {
         this.name = name;
         this.enabled = true;
         this.drawCount = 0;
+        this.executionTime = 0; // Time in milliseconds
     }
 
     resize(width, height) {

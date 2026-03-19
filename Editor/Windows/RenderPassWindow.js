@@ -38,8 +38,9 @@ export class RenderPassWindow {
             // Enabled/Active
             folder.add(pass, 'enabled').name('Active');
             
-            // Draw Count (Read Only)
+            // Stats (Read Only)
             folder.add(pass, 'drawCount').name('Draw Calls').disable().listen();
+            folder.add(pass, 'executionTime').name('Time (ms)').disable().listen();
 
             // Clear Color (if exists)
             if (pass.clearColor) {

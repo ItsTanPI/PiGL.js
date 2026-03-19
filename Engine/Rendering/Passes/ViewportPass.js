@@ -36,7 +36,7 @@ export class ViewportPass extends RenderPass {
             this.gl.viewport(valX, valY, valW, valH);
             
             // Determine texture to show
-            let finalTex = this.buffers['Outline']; // Default
+            let finalTex = this.buffers['Final']; // Default
             const p = vp.pass;
             
             if (this.buffers[p]) {
