@@ -46,7 +46,12 @@ export class Editor {
         profilerResult.window.style.display = 'none';
 
         // Render Output Selector (Viewport)
-        const passes = ['Final', 'Albedo', 'Depth', 'Normal', 'Outline'];
+        // Dynamically get available buffers from ViewportPass
+        let passes = ['Final'];
+        if (this.game.viewportPass && this.game.viewportPass.buffers) {
+            passes = Object.keys(this.game.viewportPass.buffers);
+        }
+
         this.wm.addNavSelect(passes, (mode) => {
             this.game.setViewports(mode);
         });

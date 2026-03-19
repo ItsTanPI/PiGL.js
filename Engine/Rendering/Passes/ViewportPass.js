@@ -7,13 +7,18 @@ export class ViewportPass extends RenderPass {
         this.material = screenMaterial;
         this.fullScreenQuad = new FullScreenQuad(gl);
         this.buffers = {}; // name -> texture
-        this.viewports = []; 
+        this.viewports = [];
+        this.overlay = null; // Outline or UI texture
     }
     
     setBuffer(name, texture) {
         this.buffers[name] = texture;
     }
     
+    setOverlay(texture) {
+        this.overlay = texture;
+    }
+
     setViewports(vps) {
         this.viewports = vps;
     }
@@ -44,6 +49,15 @@ export class ViewportPass extends RenderPass {
             }
     
             this.material.setUniform('uTexture', finalTex); // Generic setter
+            
+            // Set overlay if available (for outlines)
+            if (this.overlay) {
+                this.material.setUniform('uOverlay', this.overlay);
+                this.material.setUniform('uUseOverlay', 1.0); // Pass as float/int
+            } else {
+                this.material.setUniform('uUseOverlay', 0.0);
+            }
+
             this.fullScreenQuad.draw(this.material);
         }
     }

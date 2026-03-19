@@ -13,6 +13,8 @@ import { ObjectRenderPass } from './Engine/Rendering/ObjectRenderPass.js';
 import { ScreenRenderPass } from './Engine/Rendering/ScreenRenderPass.js';
 import { ViewportPass } from './Engine/Rendering/Passes/ViewportPass.js';
 import { LightingPass } from './Engine/Rendering/Passes/LightingPass.js';
+import { SkyboxPass } from './Engine/Rendering/Passes/SkyboxPass.js';
+import { OutlinePass } from './Engine/Rendering/Passes/OutlinePass.js';
 
 import { ProfilerInstrumenter } from './Engine/Profiling/Profiler.js';
 import { Editor } from './Editor/Editor.js';
@@ -33,6 +35,7 @@ import lightingVs from './Engine/shaders/lighting.vert?raw';
 import lightingFs from './Engine/shaders/lighting.frag?raw';
 import shadowVs from './Engine/shaders/shadow.vert?raw';
 import shadowFs from './Engine/shaders/shadow.frag?raw';
+import skyboxFs from './Engine/shaders/skybox.frag?raw';
 
 const canvas = document.getElementById('glcanvas');
 const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
@@ -48,7 +51,7 @@ gl.depthFunc(gl.LEQUAL);
 let sceneBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
 let depthBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST } );
 let normalBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
-let outlineBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight);
+let outlineBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
 let lightingBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight);
 let shadowBuffer = new RenderTarget(gl, 1024, 1024);
 
@@ -60,17 +63,25 @@ const shaderNormal = new Shader(gl, normalVs, normalFs);
 const shaderOutline = new Shader(gl, screenVs, outlineFs);
 const shaderNoise = new Shader(gl, mainVs, noiseFs);
 const shaderLighting = new Shader(gl, lightingVs, lightingFs);
+const shaderSkybox = new Shader(gl, screenVs, skyboxFs);
 
 const matWhite = new Material(shaderMain, 'White');
 const matRed = new Material(shaderMain, 'Red');
 const matNoise = new Material(shaderNoise, 'Noise');
 const matLighting = new Material(shaderLighting, 'PPL Lighting');
+const matSkybox = new Material(shaderSkybox, 'Skybox');
 
 // Set Initial Lighting to ensure it's not black
 matLighting.setUniforms({
     'uLightDir': [0.5, 0.8, 0.2],
     'uLightColor': [1.0, 1.0, 0.9],
     'uAmbient': 0.1
+});
+
+matSkybox.setUniforms({
+    'uTopColor': [0.1, 0.4, 0.9],
+    'uBottomColor': [0.8, 0.8, 0.9],
+    'uSunColor': [1.0, 1.0, 0.8]
 });
 
 const matShadow = new Material(shaderShadow, 'ShadowMap');
@@ -82,15 +93,15 @@ const matScreen = new Material(shaderScreen, 'Screen'); // Final Screen Material
 // Default Outline Settings
 matOutline.setUniforms({
     'uDepthThreshold': 0.5,
-    'uNormalThreshold': 0.4,
+    'uNormalThreshold': 0.01,
     'uThickness': 1.0,
-    'uOutlineColor': [0.0, 0.0, 0.0, 1.0]
+    'uOutlineColor': [1.0, 1.0, 1.0, 1.0]
 });
 
 matWhite.setUniforms({ 'uColor': [1.0, 1.0, 1.0, 1.0] });
 matRed.setUniforms({ 'uColor': [1.0, 0.0, 0.0, 1.0] });
 matNoise.setUniforms({ 'uColor': [1.0, 1.0, 1.0, 1.0], 'uWind': [0.5, 0.2], // Moves slowly to the top-right
-    'uScale': 1.0 });
+    'uScale': 2.0 });
     
 matLighting.setUniforms({
     'uLightDir': [0.5, 0.5, 0.3],
@@ -104,6 +115,7 @@ const materials = {
     'Red': matRed,
     'Noise': matNoise,
     'Lighting': matLighting,
+    'Skybox': matSkybox,
     'Shadow': matShadow,
     'Depth': matDepth,
     'Normal': matNormal,
@@ -145,13 +157,27 @@ const lightingPass = new LightingPass(gl, canvas.width, canvas.height, matLighti
 lightingPass.setInputBuffers(sceneBuffer.texture, normalBuffer.texture, depthBuffer.texture, shadowBuffer.texture);
 renderQueue.addPass(lightingPass);
 
+// 4b. Skybox Pass (Draws on top of lighting where depth is far)
+const skyboxPass = new SkyboxPass(gl, canvas.width, canvas.height, matSkybox, lightingBuffer, 'Skybox Pass');
+skyboxPass.setInputTexture(depthBuffer.texture);
+renderQueue.addPass(skyboxPass);
+
+// 4c. Outline Pass (Post-Processing)
+const outlinePass = new OutlinePass(gl, canvas.width, canvas.height, matOutline, outlineBuffer, 'Outline Pass');
+outlinePass.setInputBuffers(depthBuffer.texture, normalBuffer.texture);
+outlinePass.clearColor = [0.0   , 0.0, 0.0, 0.0];
+renderQueue.addPass(outlinePass);
+
 // 5. Viewport Pass
 const viewportPass = new ViewportPass(gl, canvas.width, canvas.height, matScreen);
 viewportPass.setBuffer('Final', lightingBuffer.texture);
+viewportPass.setBuffer('Outline', outlineBuffer.texture);
+viewportPass.setBuffer('Lit', lightingBuffer.texture);
 viewportPass.setBuffer('Albedo', sceneBuffer.texture);
 viewportPass.setBuffer('Normal', normalBuffer.texture);
 viewportPass.setBuffer('Depth', depthBuffer.texture);
 viewportPass.setBuffer('Shadow', shadowBuffer.texture);
+
 
 // Assign critical camera overrides for pipeline automatization
 shadowPass.camera = lightCamera;
@@ -207,7 +233,7 @@ ObjLoader.load(gl, './Assets/3D/Monkey.obj').then(mesh => {
 });
 
 ObjLoader.load(gl, './Assets/3D/Terrain.obj').then(mesh => {
-    floorObj = new GameObject(renderer, matWhite, mesh, 'Floor');
+    floorObj = new GameObject(renderer, matNoise, mesh, 'Floor');
     floorObj.transform.position.set(0, -5, 0);
     floorObj.transform.scale.set(1.3, 1.3, 1.3);
     scene.push(floorObj);
@@ -219,7 +245,7 @@ ObjLoader.load(gl, './Assets/3D/Terrain.obj').then(mesh => {
 // Viewport System
 // x, y, w, h are normalized (0.0 to 1.0)
 const viewports = [
-    { x: 0.0, y: 0.0, w: 1.0, h: 1.0, pass: 'Outline' } // Default Fullscreen
+    { x: 0.0, y: 0.0, w: 1.0, h: 1.0, pass: 'Final' } // Default Fullscreen
 ];
 
 // Set initial viewports
@@ -233,7 +259,8 @@ const game = {
     camera,
     renderer,
     renderQueue,
-    materials // exposed for Material Window later,
+    materials, // exposed for Material Window later,
+    viewportPass // Expos viewportPass to access available buffers
 };
 
 // Add setter for viewports
@@ -281,9 +308,10 @@ function loop(now) {
         }
     }
 
+    // Keep the shadow camera static at the global origin (0,0,0) - NOT following the main camera
     const lightTarget = [0, 0, 0];
-    
     const dist = 50.0;
+    
     lightCamera.transform.position.set(
         lightTarget[0] + lightDir[0] * dist,
         lightTarget[1] + lightDir[1] * dist,
@@ -303,6 +331,15 @@ function loop(now) {
 
     viewportPass.setViewports(viewports);
     shadowPass.camera = lightCamera;
+
+    // Update Skybox Uniforms
+    if (matSkybox.uniforms['uSunColor']) {
+        skyboxPass.setLight(lightDir, 
+            matSkybox.uniforms['uSunColor'].value, 
+            matSkybox.uniforms['uTopColor'].value, 
+            matSkybox.uniforms['uBottomColor'].value
+        );
+    }
 
     renderQueue.execute(renderer, scene, camera);
     

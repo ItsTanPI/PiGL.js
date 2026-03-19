@@ -54,9 +54,7 @@ void main() {
     if (edgeDepth > dThresh) { edge = 1.0; }
     if (edgeNormal > nThresh) { edge = 1.0; }
 
-    // 5. Composite
-    vec4 sceneColor = texture2D(uSceneTexture, vTexCoord);
-    
-    // Mix scene with outline color based on edge factor
-    gl_FragColor = mix(sceneColor, uOutlineColor, edge);
+    // 5. Output Outline Only
+    // Transparent where no edge
+    gl_FragColor = vec4(uOutlineColor.rgb, uOutlineColor.a * edge);
 }
