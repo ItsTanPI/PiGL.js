@@ -15,6 +15,7 @@ import { ViewportPass } from './Engine/Rendering/Passes/ViewportPass.js';
 import { LightingPass } from './Engine/Rendering/Passes/LightingPass.js';
 import { SkyboxPass } from './Engine/Rendering/Passes/SkyboxPass.js';
 import { OutlinePass } from './Engine/Rendering/Passes/OutlinePass.js';
+import { PixelArtPass } from './Engine/Rendering/Passes/PixelArtPass.js';
 
 import { ProfilerInstrumenter } from './Engine/Profiling/Profiler.js';
 import { Editor } from './Editor/Editor.js';
@@ -36,6 +37,7 @@ import lightingFs from './Engine/shaders/lighting.frag?raw';
 import shadowVs from './Engine/shaders/shadow.vert?raw';
 import shadowFs from './Engine/shaders/shadow.frag?raw';
 import skyboxFs from './Engine/shaders/skybox.frag?raw';
+import pixelArtFs from './Engine/shaders/pixelart.frag?raw';
 
 const canvas = document.getElementById('glcanvas');
 const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
@@ -52,6 +54,7 @@ let sceneBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { 
 let depthBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST } );
 let normalBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
 let outlineBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
+let pixelArtBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
 let lightingBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight);
 let shadowBuffer = new RenderTarget(gl, 1024, 1024);
 
@@ -64,12 +67,19 @@ const shaderOutline = new Shader(gl, screenVs, outlineFs);
 const shaderNoise = new Shader(gl, mainVs, noiseFs);
 const shaderLighting = new Shader(gl, lightingVs, lightingFs);
 const shaderSkybox = new Shader(gl, screenVs, skyboxFs);
+const shaderPixelArt = new Shader(gl, screenVs, pixelArtFs);
 
 const matWhite = new Material(shaderMain, 'White');
 const matRed = new Material(shaderMain, 'Red');
 const matNoise = new Material(shaderNoise, 'Noise');
 const matLighting = new Material(shaderLighting, 'PPL Lighting');
 const matSkybox = new Material(shaderSkybox, 'Skybox');
+const matPixelArt = new Material(shaderPixelArt, 'PixelArt');
+
+matPixelArt.setUniforms({
+    'uPixelSize': 4.0,
+    'uColorLevels': 256.0
+});
 
 // Set Initial Lighting to ensure it's not black
 matLighting.setUniforms({
@@ -100,8 +110,17 @@ matOutline.setUniforms({
 
 matWhite.setUniforms({ 'uColor': [1.0, 1.0, 1.0, 1.0] });
 matRed.setUniforms({ 'uColor': [1.0, 0.0, 0.0, 1.0] });
-matNoise.setUniforms({ 'uColor': [1.0, 1.0, 1.0, 1.0], 'uWind': [0.5, 0.2], // Moves slowly to the top-right
-    'uScale': 2.0 });
+
+matNoise.setUniforms({ 
+    'uColor': [1.0, 1.0, 1.0, 1.0],
+    'uWind': [0.1, 0.2],    // Direction of the wind
+    'uSpeed': 0.7,          // Adjust this to make the waving faster/slower
+    'uScale': 1.0,          // Base density of the grass patches
+    
+    'uColor1': [0.3, 0.38, 0.2], 
+    'uColor2': [0.35, 0.55, 0.15], 
+    'uColor3': [0.75, 0.85, 0.35]
+});
     
 matLighting.setUniforms({
     'uLightDir': [0.5, 0.5, 0.3],
@@ -116,6 +135,7 @@ const materials = {
     'Noise': matNoise,
     'Lighting': matLighting,
     'Skybox': matSkybox,
+    'PixelArt': matPixelArt,
     'Shadow': matShadow,
     'Depth': matDepth,
     'Normal': matNormal,
@@ -162,15 +182,21 @@ const skyboxPass = new SkyboxPass(gl, canvas.width, canvas.height, matSkybox, li
 skyboxPass.setInputTexture(depthBuffer.texture);
 renderQueue.addPass(skyboxPass);
 
-// 4c. Outline Pass (Post-Processing)
+// 5. Pixel Art Pass
+const pixelArtPass = new PixelArtPass(gl, canvas.width, canvas.height, matPixelArt, pixelArtBuffer, 'PixelArt Pass');
+pixelArtPass.setInputBuffers(lightingBuffer.texture, depthBuffer.texture, normalBuffer.texture);
+renderQueue.addPass(pixelArtPass);
+
+// 6. Outline Pass (Post-Processing)
 const outlinePass = new OutlinePass(gl, canvas.width, canvas.height, matOutline, outlineBuffer, 'Outline Pass');
 outlinePass.setInputBuffers(depthBuffer.texture, normalBuffer.texture);
 outlinePass.clearColor = [0.0   , 0.0, 0.0, 0.0];
 renderQueue.addPass(outlinePass);
 
-// 5. Viewport Pass
+// 6. Viewport Pass
 const viewportPass = new ViewportPass(gl, canvas.width, canvas.height, matScreen);
-viewportPass.setBuffer('Final', lightingBuffer.texture);
+viewportPass.setBuffer('Final', pixelArtBuffer.texture);
+viewportPass.setBuffer('Pixel', pixelArtBuffer.texture);
 viewportPass.setBuffer('Outline', outlineBuffer.texture);
 viewportPass.setBuffer('Lit', lightingBuffer.texture);
 viewportPass.setBuffer('Albedo', sceneBuffer.texture);
@@ -197,6 +223,7 @@ function resizeCanvas() {
     normalBuffer.resize(canvas.width, canvas.height);
     outlineBuffer.resize(canvas.width, canvas.height);
     lightingBuffer.resize(canvas.width, canvas.height);
+    pixelArtBuffer.resize(canvas.width, canvas.height);
     // shadowBuffer is fixed size for now or could be dynamic
     
     // Resize passes
@@ -221,7 +248,7 @@ let meshObj = null;
 let floorObj = null;
 
 // Load Cube
-ObjLoader.load(gl, './Assets/3D/Monkey.obj').then(mesh => {
+ObjLoader.load(gl, './Assets/3D/Cube.obj').then(mesh => {
     meshObj = new GameObject(renderer, matRed, mesh, 'Monkey'); // Changed to Monkey
     meshObj.transform.position.set(0, 2, 0);
     meshObj.transform.position.set(10, 2, 10);
