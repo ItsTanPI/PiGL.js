@@ -11,12 +11,12 @@ uniform float uColorLevels;
 uniform vec2 uResolution;
 
 // Fine-tuned thresholds
-const float depthThreshold = 0.05;
-const float normalThreshold = 0.2;
+uniform float uDepthThreshold;
+uniform float uNormalThreshold;
 
 // Color modifiers for edges
-const float silhouetteDarkening = 0.2; // Very dark for outer edges
-const float creaseDarkening = 0.7;     // Subtler darkening for inner corners
+uniform float uSilhouetteDarkening; // Very dark for outer edges
+uniform float uCreaseDarkening;     // Subtler darkening for inner corners
 
 void main() {
     // 1. PIXELATION
@@ -58,16 +58,16 @@ void main() {
     vec3 finalColor = quantizedColor;
 
     // Is it an internal crease? (Normal-based)
-    if (normalEdge > normalThreshold) {
+    if (normalEdge > uNormalThreshold) {
         // Darken the surface color rather than making it black
-        finalColor = quantizedColor * creaseDarkening;
+        finalColor = quantizedColor * uCreaseDarkening;
     }
 
     // Is it a silhouette? (Depth-based)
     // We do this second so silhouette (outer) edges override crease (inner) edges
-    if (depthEdge > depthThreshold) {
+    if (depthEdge > uDepthThreshold) {
         // Use a much heavier darkening for the outer silhouette
-        finalColor = quantizedColor * silhouetteDarkening;
+        finalColor = quantizedColor * uSilhouetteDarkening;
     }
 
     gl_FragColor = vec4(finalColor, 1.0);

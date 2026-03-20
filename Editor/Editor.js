@@ -68,7 +68,12 @@ export class Editor {
     }
 
     selectObject(object) {
+        if (!object) return;
         this.windows.inspector.inspect(object);
+        // Show the inspector window if it was hidden
+        if (this.windows.inspector.gui.parentElement.style.display === 'none') {
+            this.windows.inspector.gui.parentElement.style.display = 'block';
+        }
     }
 
     update() {

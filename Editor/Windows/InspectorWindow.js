@@ -1,4 +1,5 @@
 import GUI from 'lil-gui';
+import { Camera } from '../../Engine/Rendering/Camera.js';
 
 export class InspectorWindow {
     constructor(editor, container) {
@@ -56,6 +57,24 @@ export class InspectorWindow {
             sca.add(t.scale, 'x').step(0.1).listen().name('X');
             sca.add(t.scale, 'y').step(0.1).listen().name('Y');
             sca.add(t.scale, 'z').step(0.1).listen().name('Z');
+        }
+
+        // Camera properties (FOV, Ortho, etc.)
+        if (obj instanceof Camera) {
+            const camFolder = this.gui.addFolder('Camera Settings');
+            
+            camFolder.add(obj, 'orthographic').name('Orthographic').onChange(() => obj.updateProjection());
+            
+            const perspFolder = camFolder.addFolder('Perspective');
+            perspFolder.add(obj, 'fov', 0.1, 3.14).step(0.01).name('FOV').onChange(() => obj.updateProjection());
+            
+            const orthoFolder = camFolder.addFolder('Orthographic');
+            orthoFolder.add(obj, 'orthoSize', 0.1, 100.0).step(1.0).name('Size (Half Height)').onChange(() => obj.updateProjection());
+
+            camFolder.add(obj, 'near', 0.01, 10.0).step(0.01).name('Near Plane').onChange(() => obj.updateProjection());
+            camFolder.add(obj, 'far', 10.1, 1000.0).step(1.0).name('Far Plane').onChange(() => obj.updateProjection());
+            
+            perspFolder.open();
         }
 
         // Material properties

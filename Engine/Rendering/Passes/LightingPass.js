@@ -35,9 +35,11 @@ export class LightingPass extends ScreenRenderPass {
         const invCamViewProj = new Float32Array(16);
         this.invertMatrix(camViewProj, invCamViewProj);
 
+        const camPos = camera.transform.position;
         this.material.setUniforms({
             'uLightSpaceMatrix': lightSpace,
-            'uInverseViewProjection': invCamViewProj
+            'uInverseViewProjection': invCamViewProj,
+            'uCameraPos': [camPos.x, camPos.y, camPos.z]
         });
     }
 

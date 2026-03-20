@@ -37,6 +37,11 @@ export class HierarchyWindow {
         if (camera) {
             this.gui.add({ select: () => this.editor.selectObject(camera) }, 'select').name('Main Camera');
         }
+
+        const lightCamera = this.editor.game.lightCamera;
+        if (lightCamera) {
+            this.gui.add({ select: () => this.editor.selectObject(lightCamera) }, 'select').name('Light Camera');
+        }
         
         const objects = this.editor.game.scene || [];
         objects.forEach((obj, index) => {

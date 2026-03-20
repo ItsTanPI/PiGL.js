@@ -7,6 +7,14 @@ export class Camera extends GameObject {
         this.projectionMatrix = new Float32Array(16);
         this.viewMatrix = new Float32Array(16);
         
+        // Settings for Inspector
+        this.fov = 45 * Math.PI / 180;
+        this.aspect = 1.0;
+        this.near = 0.1;
+        this.far = 100.0;
+        this.orthographic = false;
+        this.orthoSize = 30.0;
+
         // Initial defaults
         mat4.identity(this.projectionMatrix);
         mat4.identity(this.viewMatrix);
@@ -17,6 +25,12 @@ export class Camera extends GameObject {
     }
 
     setPerspective(fov, aspect, near, far) {
+        this.fov = fov;
+        this.aspect = aspect;
+        this.near = near;
+        this.far = far;
+        this.orthographic = false;
+
         const f = 1.0 / Math.tan(fov / 2);
         const out = this.projectionMatrix;
         
@@ -29,6 +43,12 @@ export class Camera extends GameObject {
     }
 
     setOrthographic(left, right, bottom, top, near, far) {
+        this.near = near;
+        this.far = far;
+        this.orthographic = true;
+        // Approximation for inspector
+        this.orthoSize = (top - bottom) / 2;
+
         const out = this.projectionMatrix;
         const lr = 1 / (left - right);
         const bt = 1 / (bottom - top);
@@ -42,6 +62,15 @@ export class Camera extends GameObject {
         out[13] = (top + bottom) * bt;
         out[14] = (far + near) * nf;
         out[15] = 1;
+    }
+
+    updateProjection() {
+        if (this.orthographic) {
+            const size = this.orthoSize;
+            this.setOrthographic(-size * this.aspect, size * this.aspect, -size, size, this.near, this.far);
+        } else {
+            this.setPerspective(this.fov, this.aspect, this.near, this.far);
+        }
     }
 
     updateView() {
