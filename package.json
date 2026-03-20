@@ -15,10 +15,6 @@
     "vite": "^5.0.0"
   },
   "dependencies": {
-    "@tweakpane/plugin-essentials": "^0.2.1",
-    "lil-gui": "^0.21.0",
-    "tweakpane": "^4.0.5"
+    "lil-gui": "^0.21.0"
   }
 }
-
-
