@@ -58,6 +58,10 @@ Shaders are loaded as raw strings (via Vite) and compiled at runtime. The engine
 - Uniform management
 - Texture samplers
 
+
+## Development
+- **Acknowledgment**: System architecture and engineering designed by Me(TanPi), with coding assistance from AI under proper reviewing and supervision.
+
 ## Installation
 
 To run this project locally:
@@ -85,4 +89,3 @@ To run this project locally:
 ## Credits
 
 - **3D Model**: [Lowpoly Island](https://sketchfab.com/3d-models/lowpoly-island-0a514854b7164178a6c7a69961235197) by the respective artist on Sketchfab.
-
