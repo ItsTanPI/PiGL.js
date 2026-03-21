@@ -21,6 +21,7 @@
   "files": [
     "dist/pigl.mjs",
     "dist/pigl.umd.js",
+    "docs/",
     "README.md"
   ],
   "main": "./dist/pigl.umd.js",
