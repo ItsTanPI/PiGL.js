@@ -71,8 +71,9 @@ export class Editor {
         if (!object) return;
         this.windows.inspector.inspect(object);
         // Show the inspector window if it was hidden
-        if (this.windows.inspector.gui.parentElement.style.display === 'none') {
-            this.windows.inspector.gui.parentElement.style.display = 'block';
+        const inspWindow = this.windows.inspector && this.windows.inspector.container && this.windows.inspector.container.parentElement;
+        if (inspWindow && inspWindow.style.display === 'none') {
+            inspWindow.style.display = 'block';
         }
     }
 

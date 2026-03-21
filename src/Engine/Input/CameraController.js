@@ -1,16 +1,36 @@
+/**
+ * CameraController provides first-person camera movement using WASD keyboard and right-click mouse look.
+ * 
+ * @class CameraController
+ * @description Attaches to a Camera and listens for input events to manipulate its transform.
+ * Supports WASD for forward/left/backward/right, Q/E for up/down vertical, and right-mouse drag for look.
+ */
 export class CameraController {
+    /**
+     * Creates a new camera controller.
+     * 
+     * @constructor
+     * @param {Camera} camera - The camera to control.
+     * @param {HTMLElement} domElement - The DOM element to listen for input events (usually canvas).
+     */
     constructor(camera, domElement) {
+        /** @type {Camera} */
         this.camera = camera;
+        /** @type {HTMLElement} */
         this.domElement = domElement;
         
+        /** @type {number} Movement speed multiplier (units per second). */
         this.moveSpeed = 10.0;
+        /** @type {number} Mouse look sensitivity (radians per pixel). */
         this.mouseSensitivity = 0.002;
         
+        /** @type {Object<string, boolean>} Tracks pressed keys: w, a, s, d, q, e. */
         this.keys = {
             w: false, a: false, s: false, d: false,
             q: false, e: false
         };
         
+        /** @type {Object} Mouse tracking state. */
         this.mouse = {
             x: 0, y: 0,
             lastX: 0, lastY: 0,
@@ -18,6 +38,7 @@ export class CameraController {
         };
 
         // Sync initial rotation
+        /** @type {Object} Current rotation: x (pitch), y (yaw). */
         this.rotation = {
             x: camera.transform.rotation.x,
             y: camera.transform.rotation.y
@@ -79,6 +100,16 @@ export class CameraController {
         }
     }
 
+    /**
+     * Updates camera transform based on input events.
+     * 
+     * @method update
+     * @param {number} dt - Delta time in seconds since last frame.
+     * @returns {void}
+     * 
+     * @description Must be called each frame. Applies accumulated key presses and mouse look
+     * to the camera transform. Position changes use Time.deltaTime internally.
+     */
     update(dt) {
         const speed = this.moveSpeed * dt;
         const transform = this.camera.transform;

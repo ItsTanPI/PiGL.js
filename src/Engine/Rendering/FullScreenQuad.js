@@ -1,5 +1,26 @@
+/**
+ * Full Screen Quad
+ * 
+ * Utility for rendering full-screen post-processing effects. Provides a simple quad
+ * that covers the entire screen, typically used with screen-space shaders.
+ * 
+ * @class FullScreenQuad
+ * @description
+ * The full-screen quad is essential for implementing post-processing effects:
+ * - Lighting/deferred rendering passes
+ * - Screen-space effects (outlines, blur, etc.)
+ * - Tone mapping and final composition
+ * 
+ * Internally manages a simple 2-triangle quad geometry in normalized device coordinates.
+ */
 export class FullScreenQuad {
+    /**
+     * Creates a full-screen quad geometry.
+     * Sets up a simple 2-triangle quad that covers the entire viewport.
+     * @param {WebGLRenderingContext} gl - The WebGL context
+     */
     constructor(gl) {
+        /** @type {WebGLRenderingContext} */
         this.gl = gl;
         // Simple Quad geometry for full screen
         // x, y, u, v
@@ -10,16 +31,19 @@ export class FullScreenQuad {
              1.0, -1.0, 1.0, 0.0  // Bottom-Right
         ]);
 
+        /** @type {WebGLBuffer} Vertex buffer containing quad geometry */
         this.buffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
         gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
     }
 
     /**
-     * Executes a shader pass.
-     * @param {Shader|Material} shaderOrMaterial - The shader to use or a Material object.
-     * @param {Object} uniforms - Key-value pairs of uniforms (if passing raw Shader). Ignored if Material is used.
-     * @param {RenderTarget|null} target - The output target. If null, renders to screen.
+     * Draw the full-screen quad with a given material or shader.
+     * Renders the quad geometry to the currently bound framebuffer or to a specified target.
+     * Used to apply screen-space shaders and post-processing effects.
+     * @param {Shader|Material} shaderOrMaterial - Material containing the shader, or raw Shader object
+     * @param {Object|RenderTarget|null} uniforms - Key-value uniforms for Shader (ignored for Material), or RenderTarget
+     * @param {RenderTarget|null} [target=null] - Optional render target to draw to (null = screen)
      */
     draw(shaderOrMaterial, uniforms = {}, target = null) {
         const gl = this.gl;

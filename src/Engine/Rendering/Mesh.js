@@ -1,11 +1,35 @@
+/**
+ * Mesh holds vertex, uv, and normal buffers plus optional indices for indexed rendering.
+ * 
+ * @class Mesh
+ * @description Manages GPU buffers for vertex data (position, UV, normal). Provides
+ * bind() to setup vertex attributes and draw() to issue draw calls. A Mesh represents
+ * the geometry of a GameObject.
+ */
 export class Mesh {
+    /**
+     * Creates a new Mesh from vertex data and uploads to GPU.
+     * 
+     * @constructor
+     * @param {WebGLRenderingContext} gl - The WebGL context.
+     * @param {Float32Array} vertices - Vertex positions as flat array [x,y,z, x,y,z, ...].
+     * @param {Float32Array} uvs - UV texture coordinates [u,v, u,v, ...].
+     * @param {Float32Array} normals - Vertex normals [nx,ny,nz, ...].
+     * @param {Uint16Array} [indices=null] - Optional triangle indices for indexed rendering.
+     */
     constructor(gl, vertices, uvs, normals, indices = null) {
+        /** @type {WebGLRenderingContext} */
         this.gl = gl;
-        this.vertices = vertices; // Float32Array
-        this.uvs = uvs;           // Float32Array
-        this.normals = normals;   // Float32Array
-        this.indices = indices;   // Uint16Array (optional)
+        /** @type {Float32Array} Vertex positions. */
+        this.vertices = vertices;
+        /** @type {Float32Array} UV texture coordinates. */
+        this.uvs = uvs;
+        /** @type {Float32Array} Vertex normals. */
+        this.normals = normals;
+        /** @type {Uint16Array|null} Optional index buffer. */
+        this.indices = indices;
         
+        /** @type {number} Number of vertices (or indices if using indexed rendering). */
         this.count = indices ? indices.length : vertices.length / 3;
 
         // Create Buffers
@@ -32,6 +56,16 @@ export class Mesh {
         }
     }
 
+    /**
+     * Binds all vertex buffers and enables attributes for a shader.
+     * 
+     * @method bind
+     * @param {Shader} shader - The shader to bind attributes for. Looks for 'aVertexPosition', 'aTexCoord', 'aNormal'.
+     * @returns {void}
+     * 
+     * @description Enables and configures vertex attribute arrays, binding each to the appropriate buffer.
+     * Must be called before draw().
+     */
     bind(shader) {
         const gl = this.gl;
         
@@ -68,6 +102,15 @@ export class Mesh {
         }
     }
 
+    /**
+     * Issues a draw call for this mesh.
+     * 
+     * @method draw
+     * @returns {void}
+     * 
+     * @description Uses indexed drawing (drawElements) if indices are present; otherwise drawArrays.
+     * The mesh must be bound (bind()) before calling draw().
+     */
     draw() {
         const gl = this.gl;
         if (this.indices && this.indices.length > 0) {

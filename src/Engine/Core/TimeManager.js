@@ -1,14 +1,41 @@
+/**
+ * TimeManager is a singleton utility for tracking frame time and delta time.
+ * 
+ * @class TimeManager
+ * @description Provides scaled and unscaled time values for frame-based animation and physics.
+ * A single instance is exported as `Time` and should be updated each frame with the
+ * requestAnimationFrame timestamp.
+ */
 class TimeManager {
+    /**
+     * Creates a new TimeManager instance.
+     * @constructor
+     */
     constructor() {
-        this.time = 0;              // Total elapsed time scaled
-        this.deltaTime = 0;         // Time since last frame scaled
-        this.unscaledTime = 0;      // Total elapsed time unscaled
-        this.unscaledDeltaTime = 0; // Time since last frame unscaled
-        this.timeScale = 1.0;       // Multiplier for time progression
+        /** @type {number} Total elapsed scaled time in seconds. */
+        this.time = 0;
+        /** @type {number} Time since last frame (scaled by timeScale) in seconds. */
+        this.deltaTime = 0;
+        /** @type {number} Total elapsed unscaled time in seconds. */
+        this.unscaledTime = 0;
+        /** @type {number} Time since last frame (unscaled) in seconds. */
+        this.unscaledDeltaTime = 0;
+        /** @type {number} Multiplier for time progression; 0 = paused, 2 = double speed. */
+        this.timeScale = 1.0;
+        /** @private */
         this._lastTime = 0;
+        /** @private */
         this._initialized = false;
     }
 
+    /**
+     * Updates time tracking; call once per animation frame.
+     * 
+     * @method update
+     * @param {number} now - The timestamp from requestAnimationFrame (in milliseconds).
+     * @returns {void}
+     * 
+     */
     update(now) {
         // 'now' comes from requestAnimationFrame (in milliseconds)
         const nowInSeconds = now * 0.001;
@@ -28,5 +55,5 @@ class TimeManager {
     }
 }
 
-// Export a single instance to act as a Singleton
+/** @type {TimeManager} Singleton time instance; update each frame. */
 export const Time = new TimeManager();

@@ -12,6 +12,7 @@ export { ObjLoader } from './Engine/Loaders/ObjLoader.js';
 // Math
 export { Transform } from './Engine/Math/Transform.js';
 export { Vector3 } from './Engine/Math/Vector3.js';
+export { Matrix } from './Engine/Math/Matrix.js';
 
 // Profiling
 export { ProfilerInstrumenter } from './Engine/Profiling/Profiler.js';

@@ -1,10 +1,29 @@
 import { Mesh } from './Mesh.js';
 
+/**
+ * Renderer performs low-level WebGL draw operations: binding shaders/meshes, setting uniforms,
+ * and issuing draw calls.
+ * 
+ * @class Renderer
+ * @description Acts as a graphics driver that handles the details of rendering GameObjects.
+ * It manages texture binding, uniform updates, and draw call metrics/profiling.
+ * Typically called by render passes or directly when rendering individual GameObjects.
+ */
 export class Renderer {
+    /**
+     * Creates a new Renderer with a default quad mesh.
+     * 
+     * @constructor
+     * @param {WebGLRenderingContext} gl - The WebGL context.
+     */
     constructor(gl) {
+        /** @type {WebGLRenderingContext} */
         this.gl = gl;
+        /** @type {number} Total draw calls issued this frame. */
         this.drawCalls = 0;
+        /** @type {number[]} Draw call counts per pass (if profiling). */
         this.currentPassDrawCalls = [];
+        /** @type {Array} Detailed draw call information (for profiler). */
         this.drawCallDetails = [];
         
         // Define a unit Quad (Triangle Strip) suitable for Sprite rendering
@@ -67,6 +86,24 @@ export class Renderer {
         this.defaultMesh = new Mesh(gl, quadPos, quadUV, quadNorm);
     }
 
+    /**
+     * Renders a single GameObject to a target or the screen.
+     * 
+     * @method draw
+     * @param {GameObject} gameObject - The object to render; must have transform, material, and optional mesh.
+     * @param {Camera} camera - The camera providing projection and view matrices.
+     * @param {RenderTarget|null} [target=undefined] - Optional render target; null = screen, undefined = no change.
+     * @param {Material} [material=null] - Optional material override; if null, uses gameObject.material.
+     * @returns {void}
+     * 
+     * @description Handles all WebGL state setup:
+     * - Activates shader program
+     * - Binds mesh vertex buffers and attributes
+     * - Sets standard uniforms (projection, view, model matrices)
+     * - Binds material textures to texture units
+     * - Sets material uniforms
+     * - Issues draw call
+     */
     draw(gameObject, camera, target = undefined, material = null) {
         // If material is passed explicitly, use it. Otherwise use gameObject.material
         const matToUse = material || gameObject.material;
@@ -128,21 +165,19 @@ export class Renderer {
         // Draw Mesh
         mesh.draw();
         this.drawCalls++;
-
-        // Track detail
-        this.drawCallDetails.push({
-            object: gameObject ? gameObject.name : 'Unknown',
-            material: matToUse ? matToUse.name : 'Unknown',
-            shader: shader ? (shader.name || 'Shader') : 'Unknown',
-            target: target ? 'RenderTarget' : 'Screen'
-        });
     }
 
+    /**
+     * Returns and resets the draw call counter.
+     * 
+     * @method resetDrawCalls
+     * @returns {{count: number, details: Array}} Object with `count` and `details` array for profiling.
+     * @description Call once per frame after all rendering to get metrics and reset for next frame.
+     */
     resetDrawCalls() {
-        const count = this.drawCalls;
-        const details = [...this.drawCallDetails];
+        const result = { count: this.drawCalls, details: this.drawCallDetails.slice() };
         this.drawCalls = 0;
         this.drawCallDetails = [];
-        return { count, details };
+        return result;
     }
 }

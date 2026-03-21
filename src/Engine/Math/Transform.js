@@ -1,174 +1,49 @@
-// A small helper object for 4x4 matrix operations needed by the Transform
 import { Vector3 } from './Vector3.js';
+import { Matrix } from './Matrix.js';
 
-export const mat4 = {
-    identity(out) {
-        out.fill(0);
-        out[0] = 1; out[5] = 1; out[10] = 1; out[15] = 1;
-        return out;
-    },
-    multiply(out, a, b) {
-        let a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3];
-        let a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7];
-        let a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11];
-        let a30 = a[12], a31 = a[13], a32 = a[14], a33 = a[15];
-        
-        // Cache only current line of second matrix
-        let b0 = b[0], b1 = b[1], b2 = b[2], b3 = b[3];
-        out[0] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
-        out[1] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
-        out[2] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
-        out[3] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
-        
-        b0 = b[4]; b1 = b[5]; b2 = b[6]; b3 = b[7];
-        out[4] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
-        out[5] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
-        out[6] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
-        out[7] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
-        
-        b0 = b[8]; b1 = b[9]; b2 = b[10]; b3 = b[11];
-        out[8] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
-        out[9] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
-        out[10] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
-        out[11] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
-        
-        b0 = b[12]; b1 = b[13]; b2 = b[14]; b3 = b[15];
-        out[12] = b0*a00 + b1*a10 + b2*a20 + b3*a30;
-        out[13] = b0*a01 + b1*a11 + b2*a21 + b3*a31;
-        out[14] = b0*a02 + b1*a12 + b2*a22 + b3*a32;
-        out[15] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
-        return out;
-    },
-    translate(out, a, v) {
-        let x = v.x !== undefined ? v.x : v[0];
-        let y = v.y !== undefined ? v.y : v[1];
-        let z = v.z !== undefined ? v.z : v[2];
-        if (a === out) {
-            out[12] = a[0]*x + a[4]*y + a[8]*z + a[12];
-            out[13] = a[1]*x + a[5]*y + a[9]*z + a[13];
-            out[14] = a[2]*x + a[6]*y + a[10]*z + a[14];
-            out[15] = a[3]*x + a[7]*y + a[11]*z + a[15];
-        } else {
-            let a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3];
-            let a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7];
-            let a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11];
-            out[0] = a00; out[1] = a01; out[2] = a02; out[3] = a03;
-            out[4] = a10; out[5] = a11; out[6] = a12; out[7] = a13;
-            out[8] = a20; out[9] = a21; out[10] = a22; out[11] = a23;
-            out[12] = a00*x + a10*y + a20*z + a[12];
-            out[13] = a01*x + a11*y + a21*z + a[13];
-            out[14] = a02*x + a12*y + a22*z + a[14];
-            out[15] = a03*x + a13*y + a23*z + a[15];
-        }
-        return out;
-    },
-    scale(out, a, v) {
-        let x = v.x !== undefined ? v.x : v[0];
-        let y = v.y !== undefined ? v.y : v[1];
-        let z = v.z !== undefined ? v.z : v[2];
-        out[0] = a[0]*x; out[1] = a[1]*x; out[2] = a[2]*x; out[3] = a[3]*x;
-        out[4] = a[4]*y; out[5] = a[5]*y; out[6] = a[6]*y; out[7] = a[7]*y;
-        out[8] = a[8]*z; out[9] = a[9]*z; out[10] = a[10]*z; out[11] = a[11]*z;
-        out[12] = a[12]; out[13] = a[13]; out[14] = a[14]; out[15] = a[15];
-        return out;
-    },
-    rotateX(out, a, rad) {
-        let s = Math.sin(rad), c = Math.cos(rad);
-        let a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7];
-        let a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11];
-        if (a !== out) {
-            out[0] = a[0]; out[1] = a[1]; out[2] = a[2]; out[3] = a[3];
-            out[12] = a[12]; out[13] = a[13]; out[14] = a[14]; out[15] = a[15];
-        }
-        out[4] = a10*c + a20*s; out[5] = a11*c + a21*s; out[6] = a12*c + a22*s; out[7] = a13*c + a23*s;
-        out[8] = a20*c - a10*s; out[9] = a21*c - a11*s; out[10] = a22*c - a12*s; out[11] = a23*c - a13*s;
-        return out;
-    },
-    rotateY(out, a, rad) {
-        let s = Math.sin(rad), c = Math.cos(rad);
-        let a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3];
-        let a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11];
-        if (a !== out) {
-            out[4] = a[4]; out[5] = a[5]; out[6] = a[6]; out[7] = a[7];
-            out[12] = a[12]; out[13] = a[13]; out[14] = a[14]; out[15] = a[15];
-        }
-        out[0] = a00*c - a20*s; out[1] = a01*c - a21*s; out[2] = a02*c - a22*s; out[3] = a03*c - a23*s;
-        out[8] = a00*s + a20*c; out[9] = a01*s + a21*c; out[10] = a02*s + a22*c; out[11] = a03*s + a23*c;
-        return out;
-    },
-    rotateZ(out, a, rad) {
-        let s = Math.sin(rad), c = Math.cos(rad);
-        let a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3];
-        let a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7];
-        if (a !== out) {
-            out[8] = a[8]; out[9] = a[9]; out[10] = a[10]; out[11] = a[11];
-            out[12] = a[12]; out[13] = a[13]; out[14] = a[14]; out[15] = a[15];
-        }
-        out[0] = a00*c + a10*s; out[1] = a01*c + a11*s; out[2] = a02*c + a12*s; out[3] = a03*c + a13*s;
-        out[4] = a10*c - a00*s; out[5] = a11*c - a01*s; out[6] = a12*c - a02*s; out[7] = a13*c - a03*s;
-        return out;
-    },
-    invert(out, a) {
-        let a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3];
-        let a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7];
-        let a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11];
-        let a30 = a[12], a31 = a[13], a32 = a[14], a33 = a[15];
-
-        let b00 = a00 * a11 - a01 * a10;
-        let b01 = a00 * a12 - a02 * a10;
-        let b02 = a00 * a13 - a03 * a10;
-        let b03 = a01 * a12 - a02 * a11;
-        let b04 = a01 * a13 - a03 * a11;
-        let b05 = a02 * a13 - a03 * a12;
-        let b06 = a20 * a31 - a21 * a30;
-        let b07 = a20 * a32 - a22 * a30;
-        let b08 = a20 * a33 - a23 * a30;
-        let b09 = a21 * a32 - a22 * a31;
-        let b10 = a21 * a33 - a23 * a31;
-        let b11 = a22 * a33 - a23 * a32;
-
-        let det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
-
-        if (!det) return null;
-        det = 1.0 / det;
-
-        out[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
-        out[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
-        out[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
-        out[3] = (a22 * b04 - a21 * b05 - a23 * b03) * det;
-        out[4] = (a12 * b08 - a10 * b11 - a13 * b07) * det;
-        out[5] = (a00 * b11 - a02 * b08 + a03 * b07) * det;
-        out[6] = (a32 * b02 - a30 * b05 - a33 * b01) * det;
-        out[7] = (a20 * b05 - a22 * b02 + a23 * b01) * det;
-        out[8] = (a10 * b10 - a11 * b08 + a13 * b06) * det;
-        out[9] = (a01 * b08 - a00 * b10 - a03 * b06) * det;
-        out[10] = (a30 * b04 - a31 * b02 + a33 * b00) * det;
-        out[11] = (a21 * b02 - a20 * b04 - a23 * b00) * det;
-        out[12] = (a11 * b07 - a10 * b09 - a12 * b06) * det;
-        out[13] = (a00 * b09 - a01 * b07 + a02 * b06) * det;
-        out[14] = (a31 * b01 - a30 * b03 - a32 * b00) * det;
-        out[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
-
-        return out;
-    }
-};
-
+/**
+ * Transform manages local/world space position, rotation, scale and hierarchy.
+ * 
+ * @class Transform
+ * @description Stores 3D transformation (position, rotation in Euler angles, scale)
+ * and computes local and world matrices. Supports parent-child hierarchy for
+ * skeletal/rigged objects.
+ */
 export class Transform {
+    /**
+     * Creates a new Transform.
+     * @constructor
+     */
     constructor() {
+        /** @type {Vector3} Local position relative to parent. */
         this.position = new Vector3(0, 0, 0);
-        // Rotation in radians [X, Y, Z]
+        /** @type {Vector3} Local rotation in radians (Euler: X, Y, Z). */
         this.rotation = new Vector3(0, 0, 0);
+        /** @type {Vector3} Local scale. Default [1, 1, 1]. */
         this.scale = new Vector3(1, 1, 1);
         
+        /** @type {Float32Array} Local transformation matrix (4x4). */
         this.localMatrix = new Float32Array(16);
+        /** @type {Float32Array} World transformation matrix (4x4). */
         this.worldMatrix = new Float32Array(16);
-        mat4.identity(this.localMatrix);
-        mat4.identity(this.worldMatrix);
+        Matrix.identity(this.localMatrix);
+        Matrix.identity(this.worldMatrix);
 
+        /** @type {Transform|null} Parent transform; null if root. */
         this.parent = null;
+        /** @type {Transform[]} Direct children. */
         this.children = [];
     }
 
+    /**
+     * Attaches a child transform to this transform.
+     * 
+     * @method add
+     * @param {Transform} child - The child transform to attach.
+     * @returns {void}
+     * 
+     * @description If the child already has a parent, it is removed from the old parent first.
+     */
     add(child) {
         if (child.parent) {
             child.parent.remove(child);
@@ -177,6 +52,13 @@ export class Transform {
         this.children.push(child);
     }
 
+    /**
+     * Detaches a child transform from this transform.
+     * 
+     * @method remove
+     * @param {Transform} child - The child to detach.
+     * @returns {void}
+     */
     remove(child) {
         const index = this.children.indexOf(child);
         if (index !== -1) {
@@ -185,25 +67,43 @@ export class Transform {
         }
     }
 
+    /**
+     * Recomputes the local matrix from position, rotation, and scale.
+     * 
+     * @method updateLocalMatrix
+     * @returns {void}
+     * 
+     * @description Builds the local matrix as: Translate × RotateY × RotateX × RotateZ × Scale.
+     * Rotation order is YXZ (Euler).
+     */
     updateLocalMatrix() {
-        mat4.identity(this.localMatrix);
-        mat4.translate(this.localMatrix, this.localMatrix, this.position);
+        Matrix.identity(this.localMatrix);
+        Matrix.translate(this.localMatrix, this.localMatrix, this.position);
         
         // Typical rotation order Y -> X -> Z
-        mat4.rotateY(this.localMatrix, this.localMatrix, this.rotation.y);
-        mat4.rotateX(this.localMatrix, this.localMatrix, this.rotation.x);
-        mat4.rotateZ(this.localMatrix, this.localMatrix, this.rotation.z);
+        Matrix.rotateY(this.localMatrix, this.localMatrix, this.rotation.y);
+        Matrix.rotateX(this.localMatrix, this.localMatrix, this.rotation.x);
+        Matrix.rotateZ(this.localMatrix, this.localMatrix, this.rotation.z);
         
-        mat4.scale(this.localMatrix, this.localMatrix, this.scale);
+        Matrix.scale(this.localMatrix, this.localMatrix, this.scale);
     }
 
+    /**
+     * Recomputes the world matrix combining this and parent transforms, recursively updates children.
+     * 
+     * @method updateWorldMatrix
+     * @returns {void}
+     * 
+     * @description Combines parent world matrix with local matrix. Then recursively updates all children.
+     * Call at least once per frame on root nodes before rendering.
+     */
     updateWorldMatrix() {
         // First update this node's local matrix based on pos/rot/scale
         this.updateLocalMatrix();
 
         // If we have a parent, our world matrix is ParentWorldMatrix * OurLocalMatrix
         if (this.parent) {
-            mat4.multiply(this.worldMatrix, this.parent.worldMatrix, this.localMatrix);
+            Matrix.multiply(this.worldMatrix, this.parent.worldMatrix, this.localMatrix);
         } else {
             // Otherwise, our world matrix is just our local matrix
             for(let i=0; i<16; i++) {

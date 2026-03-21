@@ -1,29 +1,62 @@
 import { GameObject } from '../Core/GameObject.js';
-import { mat4 } from '../Math/Transform.js';
+import { Matrix } from '../Math/Matrix.js';
 
+/**
+ * Camera extends GameObject to provide projection and view matrices for rendering.
+ * 
+ * @class Camera
+ * @extends GameObject
+ * @description Supports both perspective and orthographic projections. The camera itself is a GameObject
+ * so it has a Transform and can be positioned/rotated in the scene. Updated each frame and passed to
+ * render passes to define what is visible.
+ */
 export class Camera extends GameObject {
+    /**
+     * Creates a new Camera with default perspective settings.
+     * @constructor
+     */
     constructor() {
         super(null); // Camera has no renderer
+        /** @type {Float32Array} 4x4 projection matrix; updated by setPerspective/setOrthographic. */
         this.projectionMatrix = new Float32Array(16);
+        /** @type {Float32Array} 4x4 view matrix; inverse of world matrix (camera's pose). */
         this.viewMatrix = new Float32Array(16);
         
         // Settings for Inspector
+        /** @type {number} Field of view in radians (for perspective mode). */
         this.fov = 45 * Math.PI / 180;
+        /** @type {number} Aspect ratio (width/height). */
         this.aspect = 1.0;
+        /** @type {number} Near clipping plane distance. */
         this.near = 0.1;
+        /** @type {number} Far clipping plane distance. */
         this.far = 100.0;
+        /** @type {boolean} Is orthographic projection active? */
         this.orthographic = false;
+        /** @type {number} Size for orthographic projection (half-height). */
         this.orthoSize = 30.0;
 
         // Initial defaults
-        mat4.identity(this.projectionMatrix);
-        mat4.identity(this.viewMatrix);
+        Matrix.identity(this.projectionMatrix);
+        Matrix.identity(this.viewMatrix);
 
         // Ensure starting position is matched with transform
         this.transform.position.set(0, 0, 5);
         this.name = 'Camera';
     }
 
+    /**
+     * Sets up perspective projection (standard 3D view).
+     * 
+     * @method setPerspective
+     * @param {number} fov - Field of view in radians.
+     * @param {number} aspect - Aspect ratio (width / height).
+     * @param {number} near - Near clipping plane.
+     * @param {number} far - Far clipping plane.
+     * @returns {void}
+     * 
+     * @description Updates internal projection matrix. Call `updateProjection()` to rebuild if settings change.
+     */
     setPerspective(fov, aspect, near, far) {
         this.fov = fov;
         this.aspect = aspect;
@@ -42,6 +75,18 @@ export class Camera extends GameObject {
         out[14] = (2 * far * near) / (near - far);
     }
 
+    /**
+     * Sets up orthographic projection (2D/isometric view).
+     * 
+     * @method setOrthographic
+     * @param {number} left - Left clip boundary.
+     * @param {number} right - Right clip boundary.
+     * @param {number} bottom - Bottom clip boundary.
+     * @param {number} top - Top clip boundary.
+     * @param {number} near - Near clipping plane.
+     * @param {number} far - Far clipping plane.
+     * @returns {void}
+     */
     setOrthographic(left, right, bottom, top, near, far) {
         this.near = near;
         this.far = far;
@@ -64,6 +109,14 @@ export class Camera extends GameObject {
         out[15] = 1;
     }
 
+    /**
+     * Rebuilds projection matrix from current settings.
+     * 
+     * @method updateProjection
+     * @returns {void}
+     * 
+     * @description Call after changing `fov`, `aspect`, `near`, `far`, or `orthographic` mode.
+     */
     updateProjection() {
         if (this.orthographic) {
             const size = this.orthoSize;
@@ -73,15 +126,33 @@ export class Camera extends GameObject {
         }
     }
 
+    /**
+     * Computes the view matrix from the camera's world transform.
+     * 
+     * @method updateView
+     * @returns {void}
+     * 
+     * @description The view matrix is the inverse of the camera's world matrix.
+     * Call once per frame before rendering.
+     */
     updateView() {
         // Because the Camera is just a GameObject, we first calculate its world matrix based on 
         // position, rotation, scale, and any parents it might be attached to.
         this.transform.updateWorldMatrix();
         
         // The ViewMatrix for rendering is exactly the mathematical inverse of the Camera's WorldMatrix!
-        mat4.invert(this.viewMatrix, this.transform.worldMatrix);
+        Matrix.invert(this.viewMatrix, this.transform.worldMatrix);
     }
 
+    /**
+     * Projects a GameObject's world position to normalized screen coordinates (0–1).
+     * 
+     * @method getScreenPosition
+     * @param {GameObject} gameObject - Object to project.
+     * @returns {number[]} Array [screenX, screenY] in normalized device coords (0=left/bottom, 1=right/top).
+     * 
+     * @description Useful for UI positioning or culling checks. Returns [0.5, 0.5] on projection failure.
+     */
     getScreenPosition(gameObject) {
         // Basic Transform logic to project 3D point to 2D Screen UV (0-1)
         

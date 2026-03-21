@@ -1,6 +1,25 @@
 import { Mesh } from '../Rendering/Mesh.js';
 
+/**
+ * ObjLoader loads and parses Wavefront .obj model files into Mesh instances.
+ * 
+ * @class ObjLoader
+ * @description Provides static methods to load .obj files from URLs or parse raw OBJ text.
+ * Supports vertices (v), texture coordinates (vt), normals (vn), and faces (f).
+ * Automatically triangulates polygons and creates WebGL mesh buffers.
+ */
 export class ObjLoader {
+    /**
+     * Loads a .obj file from a URL and returns a Mesh.
+     * 
+     * @static
+     * @method load
+     * @param {WebGLRenderingContext} gl - The WebGL context.
+     * @param {string} url - URL to the .obj file.
+     * @returns {Promise<Mesh>} Promise resolving to a Mesh with loaded geometry.
+     * 
+     * @description Fetches the file, parses it, and constructs buffers.
+     */
     static async load(gl, url) {
         const response = await fetch(url);
         const text = await response.text();
@@ -8,6 +27,18 @@ export class ObjLoader {
         return new Mesh(gl, data.positions, data.uvs, data.normals);
     }
 
+    /**
+     * Parses OBJ text content into WebGL buffer-ready arrays.
+     * 
+     * @static
+     * @method parse
+     * @param {WebGLRenderingContext} gl - The WebGL context (for future extensions).
+     * @param {string} text - Raw OBJ file content (plain text).
+     * @returns {Object} Object with keys: `positions`, `uvs`, `normals` (Float32Arrays), and `vertexCount`.
+     * 
+     * @description Processes v, vt, vn, and f lines. Triangulates non-triangular faces using fan triangulation.
+     * OBJ indices are 1-based and converted to 0-based for WebGL.
+     */
     static parse(gl, text) {
         const positions = [];
         const uvs = [];
