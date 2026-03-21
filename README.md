@@ -80,6 +80,50 @@ To run this project locally:
    npm run build
    ```
 
+## Usage as a Library
+
+You can use PiGL.js as a standalone app or as a library in your own projects.
+
+### As a Library
+
+To build the library:
+
+```bash
+npm run build:lib
+```
+
+This will generate `dist/pigl.umd.js` and `dist/pigl.es.js`.
+
+#### Importing
+
+- For ES Modules:
+  ```js
+  import { Renderer, Editor, LightingPass } from 'pigl';
+  ```
+- For UMD (browser):
+  ```html
+  <script src="dist/pigl.umd.js"></script>
+  <script>
+    const { Renderer, Editor, LightingPass } = window.PiGL;
+  </script>
+  ```
+
+All engine, editor, passes, and utility modules are exported from the library entry point.
+
+### As an App
+
+You can continue to use the project as a standalone app with:
+
+```bash
+npm run dev
+```
+
+or build for deployment with:
+
+```bash
+npm run build
+```
+
 ## Controls
 
 - **WASD**: Move Camera

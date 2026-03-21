@@ -1,5 +1,5 @@
 {
-  "name": "webgl-shader-project",
+  "name": "pigl-js",
   "version": "1.0.0",
   "description": "Vanilla JS WebGL Project",
   "homepage": "https://itstanpi.github.io/PiGL.js/",
@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "build:lib": "set BUILD_LIB=1&& vite build --emptyOutDir"
   },
   "devDependencies": {
     "gh-pages": "^6.3.0",
@@ -16,5 +17,18 @@
   },
   "dependencies": {
     "lil-gui": "^0.21.0"
+  },
+  "files": [
+    "dist/pigl.mjs",
+    "dist/pigl.umd.js",
+    "README.md"
+  ],
+  "main": "./dist/pigl.umd.js",
+  "module": "./dist/pigl.mjs",
+  "exports": {
+    ".": {
+      "import": "./dist/pigl.mjs",
+      "require": "./dist/pigl.umd.js"
+    }
   }
 }
