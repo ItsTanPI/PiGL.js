@@ -136,5 +136,6 @@ npm run build
 - **Editor UI**: Interacting with windows to change scene settings.
 
 ## Credits
-
+ 
 - **3D Model**: [Lowpoly Island](https://sketchfab.com/3d-models/lowpoly-island-0a514854b7164178a6c7a69961235197) by the respective artist on Sketchfab.
+- **Textures / Assets**: Kenney — https://www.kenney.nl

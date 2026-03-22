@@ -4,6 +4,7 @@ import { InspectorWindow } from './Windows/InspectorWindow.js';
 import { MaterialWindow } from './Windows/MaterialWindow.js';
 import { RenderPassWindow } from './Windows/RenderPassWindow.js';
 import { ProfilerWindow } from './Windows/ProfilerWindow.js';
+import { InfoWindow } from './Windows/InfoWindow.js';
 
 export class Editor {
     constructor(game) {
@@ -44,6 +45,12 @@ export class Editor {
         this.windows.profiler = new ProfilerWindow(this, profilerResult.content);
         this.wm.addNavItem('PROFILER', profilerResult.window);
         profilerResult.window.style.display = 'none';
+
+        // Info Window (wider/taller for better readability)
+        const infoResult = this.wm.createWindow('Info', 290, 440, 380, 300);
+        this.windows.info = new InfoWindow(this, infoResult.content);
+        this.wm.addNavItem('INFO', infoResult.window);
+        infoResult.window.style.display = 'none';
 
         // Render Output Selector (Viewport)
         // Dynamically get available buffers from ViewportPass
