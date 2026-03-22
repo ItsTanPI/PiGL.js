@@ -12,11 +12,11 @@ uniform vec3 uTopColor;
 uniform vec3 uBottomColor;
 uniform vec3 uSunColor;
 
-// --- STYLIZED UNIFORMS ---
+// --- DYNAMIC & SSS UNIFORMS ---
 uniform float uCloudScale;
 uniform float uCloudThreshold; 
-uniform float uCloudDensity;    // Global Opacity (0.0 to 1.0)
-uniform float uCloudCoverage;   // Higher = more clusters appear
+uniform float uCloudDensity;    
+uniform float uCloudCoverage;   
 uniform float uCloudSpeed;
 uniform vec3  uCloudMainColor;
 uniform vec3  uCloudShadeColor; 
@@ -34,13 +34,23 @@ float worley(vec2 p) {
         for (int x = -1; x <= 1; x++) {
             vec2 g = vec2(float(x), float(y));
             vec2 o = hash22(n + g);
-            o = 0.5 + 0.5 * sin(uTime * uCloudSpeed + 6.2831 * o);
+            o = 0.5 + 0.5 * sin(uTime * 0.15 + 6.2831 * o);
             vec2 r = g + o - f;
-            float d = dot(r, r);
-            minDist = min(minDist, d);
+            minDist = min(minDist, dot(r, r));
         }
     }
     return 1.0 - sqrt(minDist);
+}
+
+float getCloudNoise(vec2 uv, float t) {
+    vec2 warp = vec2(worley(uv * 0.4 + t * 0.02), worley(uv * 0.4 - t * 0.02)) * 0.5;
+    vec2 dUV = uv + warp;
+    float v = worley(dUV) * 0.6 + worley(dUV * 2.5 + t * 0.1) * 0.3 + worley(dUV * 5.0) * 0.1;
+    return v;
+}
+
+float speed(vec3 p) {
+    return fract(sin(dot(p, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
 }
 
 void main() {
@@ -51,44 +61,46 @@ void main() {
     vec4 worldPosH = uInverseViewProjection * clipPos;
     vec3 worldPos = worldPosH.xyz / worldPosH.w;
     vec3 dir = normalize(worldPos - uCameraPos);
+    vec3 lightDir = normalize(uLightDir);
 
-    // 1. Sky Gradient
+    float sunDot = max(dot(dir, lightDir), 0.0);
     vec3 skyColor = mix(uBottomColor, uTopColor, smoothstep(-0.1, 0.8, dir.y));
 
-    // 2. Spherical Cloud Logic
-    vec2 cloudUV = dir.xz / (max(dir.y, 0.01) + 0.2); 
-    vec2 wind = vec2(uTime * uCloudSpeed);
-    
-    float n = worley((cloudUV + wind) * uCloudScale);
-    
-    // --- DENSITY CONTROL ---
-    // Subtracting coverage from the noise value determines "how many" spheres survive
-    float baseMask = n - (1.0 - uCloudCoverage);
-    float cloudMask = smoothstep(uCloudThreshold, uCloudThreshold + 0.02, baseMask);
-    
-    // Fade out at horizon and apply global density/opacity
-    cloudMask *= smoothstep(0.0, 0.15, dir.y);
-    float finalOpacity = cloudMask * uCloudDensity;
+    // Dynamic UVs
+    float t = uTime * uCloudSpeed;
+    vec2 cloudUV = (dir.xz / (max(dir.y, 0.01) + 0.2)) * uCloudScale + vec2(t, t * 0.1);
 
-    // 3. Cel-Shaded Volume
-    float shadowMask = smoothstep(uCloudThreshold + 0.1, uCloudThreshold + 0.12, baseMask);
+    // 1. DENSITY & OCCLUSION
+    float density = getCloudNoise(cloudUV, t);
+    float mask = smoothstep(1.0 - uCloudCoverage, 1.0 - uCloudCoverage + 0.2, density);
     
-    // 4. Directional Rim Light
-    float lightN = worley((cloudUV + wind + normalize(uLightDir.xz) * 0.1) * uCloudScale) - (1.0 - uCloudCoverage);
-    float rimLight = smoothstep(uCloudThreshold, uCloudThreshold + 0.05, lightN);
-    
-    vec3 cloudCol = mix(uCloudShadeColor, uCloudMainColor, shadowMask);
-    
-    float sunDot = max(dot(dir, normalize(uLightDir)), 0.0);
-    cloudCol += uSunColor * pow(sunDot, 15.0) * rimLight * 0.5;
+    // 2. SUN BLOCKING (Occlusion)
+    // As the cloud density increases, the sun disk fades out
+    float sunOcclusion = smoothstep(0.4, 0.8, density); 
+    float sunVisibility = 1.0 - (sunOcclusion * uCloudDensity);
 
-
-    // 5. Final Composition using the Opacity factor
-    vec3 color = mix(skyColor, cloudCol, finalOpacity);
-
-    // Stylized Sun
-    float sunDisk = smoothstep(0.998, 0.999, sunDot); 
-    color += uSunColor * sunDisk * 1.5;
+    // 3. SUBSURFACE SCATTERING (Forward Scattering)
+    // Light bleeds through the edges (low density areas) when looking toward the sun
+    float sss = pow(sunDot, 8.0) * (1.0 - density) * 2.0;
     
-    gl_FragColor = vec4(color, 1.0);
+    // 4. BEER'S LAW SHADOWING (Standard Lighting)
+    vec2 lightOffset = lightDir.xz * 0.12;
+    float lightSample = getCloudNoise(cloudUV + lightOffset, t);
+    float shadow = exp(-(density - lightSample) * 3.5);
+
+    // 5. COLOR MIXING
+    vec3 cloudBase = mix(uCloudShadeColor, uCloudMainColor, shadow);
+    
+    // Apply SSS: The edges glow with SunColor when in front of the sun
+    vec3 cloudWithSSS = mix(cloudBase, uSunColor, sss * mask);
+
+    // 6. FINAL COMPOSITION
+    float alpha = mask * uCloudDensity * smoothstep(0.0, 0.1, dir.y);
+    vec3 finalCloud = mix(skyColor, cloudWithSSS, alpha);
+
+    // Render Sun Disk with Occlusion
+    float sunDisk = smoothstep(0.998, 0.999, sunDot) * sunVisibility; 
+    vec3 finalColor = finalCloud + (uSunColor * sunDisk * 2.0);
+    
+    gl_FragColor = vec4(finalColor, 1.0);
 }

@@ -6,6 +6,7 @@ import { RenderTarget } from './Engine/Rendering/RenderTarget.js';
 import { GameObject } from './Engine/Core/GameObject.js';
 import { Time } from './Engine/Core/TimeManager.js';
 import { ObjLoader } from './Engine/Loaders/ObjLoader.js';
+import { Texture } from './Engine/Rendering/Texture.js';
 
 
 import { RenderQueue } from './Engine/Rendering/RenderQueue.js';
@@ -20,109 +21,91 @@ import { Editor } from './Editor/Editor.js';
 import { CameraController } from './Engine/Input/CameraController.js';
 
 // Assets
-import mainVs from './Engine/shaders/quad.vert?raw';
-import mainFs from './Engine/shaders/quad.frag?raw';
 import screenVs from './Engine/shaders/quad_screen.vert?raw';
 import screenFs from './Engine/shaders/quad_screen.frag?raw';
-import depthVs from './Engine/shaders/depth.vert?raw';
-import depthFs from './Engine/shaders/depth.frag?raw';
-import normalVs from './Engine/shaders/normal.vert?raw';
-import normalFs from './Engine/shaders/normal.frag?raw';
-import outlineFs from './Engine/shaders/outline.frag?raw';
-import noiseFs from './Engine/shaders/noise.frag?raw';
+
 import lightingVs from './Engine/shaders/lighting.vert?raw';
 import lightingFs from './Engine/shaders/lighting.frag?raw';
-import shadowVs from './Engine/shaders/shadow.vert?raw';
-import shadowFs from './Engine/shaders/shadow.frag?raw';
 import skyboxFs from './Engine/shaders/skybox.frag?raw';
 import pixelArtFs from './Engine/shaders/pixelart.frag?raw';
 import waterVs from './Engine/shaders/Water.vert?raw';
 import waterFs from './Engine/shaders/Water.frag?raw';
 
+import masterVs from './Engine/shaders/ShaderLib/Master.vert?raw';
+import masterFs from './Engine/shaders/ShaderLib/Master.frag?raw';
 
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
 const canvas = document.getElementById('glcanvas');
 const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
 if (!gl) { alert('Unable to initialize WebGL.'); }
-gl.getExtension('OES_standard_derivatives');
-gl.getExtension('EXT_shader_texture_lod'); // Often useful
 
 gl.enable(gl.BLEND);
 gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 gl.enable(gl.DEPTH_TEST);
 gl.depthFunc(gl.LEQUAL);
+gl.enable(gl.CULL_FACE);
+gl.cullFace(gl.BACK);
+gl.frontFace(gl.CCW);
 
 let sceneBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
 let depthBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST } );
+let roughnessBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST } );
 let normalBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
-let outlineBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
 let pixelArtBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
 let lightingBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
+
 let shadowBuffer = new RenderTarget(gl, 1024, 1024);
 
-const shaderMain = new Shader(gl, mainVs, mainFs);
+const shaderMain = new Shader(gl, masterVs, masterFs);
 const shaderScreen = new Shader(gl, screenVs, screenFs);
-const shaderDepth = new Shader(gl, depthVs, depthFs);
-const shaderShadow = new Shader(gl, shadowVs, shadowFs);
-const shaderNormal = new Shader(gl, normalVs, normalFs);
-const shaderOutline = new Shader(gl, screenVs, outlineFs);
-const shaderNoise = new Shader(gl, mainVs, noiseFs);
-const shaderDisplacemet = new Shader(gl, waterVs, waterFs);
-
+const shaderDisplacemet = new Shader(gl, [waterVs, masterVs], [waterFs, masterFs]);
 const shaderLighting = new Shader(gl, lightingVs, lightingFs);
 const shaderSkybox = new Shader(gl, screenVs, skyboxFs);
 const shaderPixelArt = new Shader(gl, screenVs, pixelArtFs);
 
-const matWhite = new Material(shaderMain, 'White');
-const matRed = new Material(shaderMain, 'Red');
-const matGrey = new Material(shaderMain, 'Grey');
-const matBrown = new Material(shaderMain, 'Brown');
 
-
-
-const matNoise = new Material(shaderNoise, 'Noise');
+const shipTexture = new Texture(gl, './Assets/Textures/colormap.png');
+const matScene = new Material(shaderMain, 'Ship Mat');
 const matWater = new Material(shaderDisplacemet, 'Water');
-
-// Custom Depth/Normal Materials for Displacement
-const shaderWaterDepth = new Shader(gl, waterVs, depthFs);
-const shaderWaterNormal = new Shader(gl, waterVs, normalFs);
-const matWaterDepth = new Material(shaderWaterDepth, 'Water Depth');
-const matWaterNormal = new Material(shaderWaterNormal, 'Water Normal');
-
 const matLighting = new Material(shaderLighting, 'PPL Lighting');
 const matSkybox = new Material(shaderSkybox, 'Skybox');
 const matPixelArt = new Material(shaderPixelArt, 'PixelArt');
+const matScreen = new Material(shaderScreen, 'Screen'); 
 
-const matShadow = new Material(shaderShadow, 'ShadowMap');
-const matDepth = new Material(shaderDepth, 'Depth'); // Depth material
-const matNormal = new Material(shaderNormal, 'Normal'); // Normal material
-const matOutline = new Material(shaderOutline, 'Outline'); // Outline Material
-const matScreen = new Material(shaderScreen, 'Screen'); // Final Screen Material
-
+matScene.setUniforms({ 
+    'uColor': [1.0, 1.0, 1.0, 1.0], 
+    'uHasTexture': 1.0, 
+    'uMainTex': shipTexture.texture, 
+    'uRoughness':1.0
+});
 
 matPixelArt.setUniforms({
     'uPixelSize': 2.0,
     'uColorLevels': 128.0,
-    'uDepthThreshold': 0.05,
-    'uNormalThreshold': 0.2,
-    'uSilhouetteDarkening': 0.2,
-    'uCreaseDarkening': 0.7
-});
+    'uDepthThreshold': 0.025,
+    'uNormalThreshold': 0.1,
+    'uSilhouetteDarkening': 0.2, // Darker for outer edges
+    'uCreaseDarkening': 0.7,     // Lighter for inner corners/color changes
+});;
 
 // Set Initial Lighting to ensure it's not black
 matLighting.setUniforms({
-    'uLightDir': [1, 0.2, 10],
-    'uLightColor': [1.0, 0.7, 0.4],
+    'uLightDir': [1, 0.2, 10],//'uLightDir': [1, 1, 1],
+    'uLightColor': [1.0, 0.8, 0.75],//'uLightColor': [0.9, 0.9, 0.9],
     'uAmbient': 0.5,
-    'uSpecularStrength': 0.7,
-    'uShininess': 32.0,
+    'uSpecularStrength': 0.3,
+    'uShininess': 0.03,
     'uVolumetricSteps': 20,
     'uVolumetricIntensity': 0.1,
     'uVolumetricScattering': 0.5
 });
 
 matSkybox.setUniforms({
-    'uTopColor': 	[0.21, 0.31, 0.49],
+    // 'uTopColor': 	[0.12, 0.45, 0.85],
+    // 'uBottomColor': 	[0.70, 0.85, 0.95],
+    // 'uSunColor': 	[1.00, 1.00, 1.00],
+    'uTopColor': [0.063, 0.188, 0.820],
     'uBottomColor': 	[1.00, 0.51, 0.32],
     'uSunColor': [1.00, 0.33, 0.10],
     'uCloudScale': 5.4,
@@ -134,73 +117,33 @@ matSkybox.setUniforms({
     'uCloudShadeColor': [0.9, 0.35, 0.25]
 });
 
-
-// Default Outline Settings
-matOutline.setUniforms({
-    'uDepthThreshold': 0.5,
-    'uNormalThreshold': 0.01,
-    'uThickness': 1.0,
-    'uOutlineColor': [1.0, 1.0, 1.0, 1.0]
-});
-
-matWhite.setUniforms({ 'uColor': [1.0, 1.0, 1.0, 1.0] });
-matRed.setUniforms({ 'uColor': [1.0, 0.0, 0.0, 1.0] });
-matGrey.setUniforms({ 'uColor': [0.4, 0.4, 0.4, 1.0] });
-matBrown.setUniforms({ 'uColor': [0.804, 0.498, 0.196, 1.0] });
-
-
-matNoise.setUniforms({ 
-    'uColor': [1.0, 1.0, 1.0, 1.0],
-    'uWind': [0.1, 0.2],    // Direction of the wind
-    'uSpeed': 0.7,          // Adjust this to make the waving faster/slower
-    'uScale': 1.0,          // Base density of the grass patches
-    
-    'uColor1': [0.3, 0.38, 0.2], 
-    'uColor2': [0.35, 0.55, 0.15], 
-    'uColor3': [0.85, 0.85, 0.85]
-});
-
 const waterConfig = {
     // Movement & Shape
-    uWind: [0.05, 0.0],
-    uSpeed: 5.0,           // Calm speed
-    uScale: 0.08,          // Ripple frequency
-    udisplacement: 0.75,    // Height of the noise ripples
-    uSteepness: 0.2,       // Height of the Gerstner waves
-    uWavelength: 25.0,     // Distance between waves
+    'uWind': [1, 0.0],
+    'uSpeed': 0.5,
+    'udisplacement': 1.5,
+    'uScale': 0.2,          // Ripple frequency
     
-    // Natural Water Colors
-    uColor1: [0.094, 0.271, 0.494], // Deep Navy (The pits/troughs)
-    uColor2: [0.196, 0.404, 0.624],  // Tropical Turquoise (The slopes)
-    uColor3: [0.8, 0.8, 1.0],   // Sea Foam White (The crests)
+    'uColor1': [0.094, 0.271, 0.494], // Deep Navy (The pits/troughs)
+    'uColor2': [0.196, 0.404, 0.624],  // Tropical Turquoise (The slopes)
+    'uColor3': [0.8, 0.8, 1.0],   // Sea Foam White (The crests)
+    'uWaveA': [-0.35, 0.70, 0.13, 3.92],
+    'uWaveB': [-0.95, 0.51, 0.10, 2.25],
+    'uWaveC': [1.0, -4.66, 0.10, 20.57],
+    'uColorBands' : 3.0,
+    'uRoughness':0.0
 };
 
 
-// List of all materials that need these exact parameters
-const waterMaterials = [
-    matWater, 
-    matWaterDepth, 
-    matWaterNormal
-];
-
-waterMaterials.forEach(mat => {
-    mat.setUniforms(waterConfig);
-});
+matWater.setUniforms(waterConfig);
 
 // Register Materials for Editor
 const materials = {
-    'White': matWhite,
-    'Red': matRed,
-    'Noise': matNoise,
     'Lighting': matLighting,
     'Skybox': matSkybox,
     'PixelArt': matPixelArt,
-    'Shadow': matShadow,
-    'Depth': matDepth,
-    'Normal': matNormal,
-    'Outline': matOutline,
-    'Screen': matScreen,
-    'Water' : matWater
+    'Water' : matWater,
+    'Ship' : matScene
 };
 
 
@@ -212,47 +155,53 @@ const scene = [];
 const renderQueue = new RenderQueue();
 
 // 0. Shadow Pass
-const shadowPass = new ObjectRenderPass(gl, shadowBuffer.width, shadowBuffer.height, shadowBuffer, matShadow, 'Shadow Pass');
-shadowPass.clearColor = [1.0, 1.0, 1.0, 1.0]; // Set depth to max
-shadowPass.autoResize = false; // Fixed resolution
+const shadowPass = new ObjectRenderPass(gl, shadowBuffer.width, shadowBuffer.height, shadowBuffer, 4, 'Shadow Pass');
+shadowPass.clearColor = [1.0, 1.0, 1.0, 1.0];
+shadowPass.autoResize = false; 
 renderQueue.addPass(shadowPass);
 
 // 1. Depth Pass
-const depthPass = new ObjectRenderPass(gl, canvas.width, canvas.height, depthBuffer, matDepth, 'Depth Pass');
+const depthPass = new ObjectRenderPass(gl, canvas.width, canvas.height, depthBuffer, 3, 'Depth Pass');
 depthPass.clearColor = [1.0, 1.0, 1.0, 1.0];
 renderQueue.addPass(depthPass);
 
 // 2. Normal Pass
-const normalPass = new ObjectRenderPass(gl, canvas.width, canvas.height, normalBuffer, matNormal, 'Normal Pass');
+const normalPass = new ObjectRenderPass(gl, canvas.width, canvas.height, normalBuffer, 2, 'Normal Pass');
 normalPass.clearColor = [0.5, 0.5, 1.0, 1.0];
 renderQueue.addPass(normalPass);
 
+// 4. roughness pass
+const roughnessPass = new ObjectRenderPass(gl, canvas.width, canvas.height, roughnessBuffer, 1, 'Roughness Pass');
+roughnessPass.clearColor = [0.0, 0.0, 0.0, 1.0];
+renderQueue.addPass(roughnessPass);
+
 // 3. Albedo Pass 
-const scenePass = new ObjectRenderPass(gl, canvas.width, canvas.height, sceneBuffer, null, 'Albedo Pass');
+const scenePass = new ObjectRenderPass(gl, canvas.width, canvas.height, sceneBuffer, 0, 'Albedo Pass');
 scenePass.clearColor = [0.0, 0.0, 0.0, 1.0];
 renderQueue.addPass(scenePass);
 
 // 4. Lighting Pass
 const lightingPass = new LightingPass(gl, canvas.width, canvas.height, matLighting, lightingBuffer, 'Lighting Pass');
-lightingPass.setInputBuffers(sceneBuffer.texture, normalBuffer.texture, depthBuffer.texture, shadowBuffer.texture);
+lightingPass.setInputBuffers(sceneBuffer.texture, normalBuffer.texture, depthBuffer.texture, shadowBuffer.texture, roughnessBuffer.texture);
 renderQueue.addPass(lightingPass);
 
-// 4b. Skybox Pass (Draws on top of lighting where depth is far)
+// 5. Skybox Pass (Draws on top of lighting where depth is far)
 const skyboxPass = new SkyboxPass(gl, canvas.width, canvas.height, matSkybox, lightingBuffer, 'Skybox Pass');
 skyboxPass.setInputTexture(depthBuffer.texture);
 renderQueue.addPass(skyboxPass);
 
-// 5. Pixel Art Pass
+// 6. Pixel Art Pass
 const pixelArtPass = new PixelArtPass(gl, canvas.width, canvas.height, matPixelArt, pixelArtBuffer, 'PixelArt Pass');
-pixelArtPass.setInputBuffers(lightingBuffer.texture, depthBuffer.texture, normalBuffer.texture);
+pixelArtPass.setInputBuffers(lightingBuffer.texture, depthBuffer.texture, normalBuffer.texture, roughnessBuffer.texture);
 renderQueue.addPass(pixelArtPass);
 
-// 6. Viewport Pass
+// 7. Viewport Pass
 const viewportPass = new ViewportPass(gl, canvas.width, canvas.height, matScreen);
 viewportPass.setBuffer('Final', pixelArtBuffer.texture);
 viewportPass.setBuffer('Pixel', pixelArtBuffer.texture);
 viewportPass.setBuffer('Lit', lightingBuffer.texture);
 viewportPass.setBuffer('Albedo', sceneBuffer.texture);
+viewportPass.setBuffer('Roughness', roughnessBuffer.texture);
 viewportPass.setBuffer('Normal', normalBuffer.texture);
 viewportPass.setBuffer('Depth', depthBuffer.texture);
 viewportPass.setBuffer('Shadow', shadowBuffer.texture);
@@ -271,7 +220,6 @@ function resizeCanvas() {
     sceneBuffer.resize(canvas.width, canvas.height);
     depthBuffer.resize(canvas.width, canvas.height);
     normalBuffer.resize(canvas.width, canvas.height);
-    outlineBuffer.resize(canvas.width, canvas.height);
     lightingBuffer.resize(canvas.width, canvas.height);
     pixelArtBuffer.resize(canvas.width, canvas.height);
     // shadowBuffer is fixed size for now or could be dynamic
@@ -281,16 +229,16 @@ function resizeCanvas() {
 
     // Update Camera Aspect Ratio
     const aspect = canvas.width / canvas.height;
-    camera.setPerspective(45 * Math.PI / 180, aspect, 0.1, 100.0);
+    camera.setPerspective(0.8, aspect, 0.1, 1000.0);
 }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas(); // Initial call
 
 // Perspective setup
 const aspect = canvas.width / canvas.height;
-camera.setPerspective(45 * Math.PI / 180, aspect, 0.1, 100.0);
-camera.transform.position.set(-8.04, -0.21, -18.09);
-camera.transform.rotation.set(-0.01, -9.35, 0.00);
+camera.setPerspective(0.8, aspect, 0.1, 1000.0);
+camera.transform.position.set(-16.2, 1.8, -47);
+camera.transform.rotation.set( 0.0, isMobile ? 3.24: 3.22, 0);
 
 let lighthouseMain = null;
 let lighthouseRed = null;
@@ -298,56 +246,40 @@ let waterFloor = null;
 let sandPlane = null;
 let cloudObjects = null;
 let lighthouseBrown = null;
+let shipObject = null;
 
 
-// Load Cube
-ObjLoader.load(gl, './Assets/3D/LightHouse.obj').then(mesh => {
-    lighthouseMain = new GameObject(renderer, matWhite, mesh, 'Lighthouse Main'); 
-    lighthouseMain.transform.position.set(0, -7, 0);
-    lighthouseMain.transform.scale.set(50, 50, 50);
-    scene.push(lighthouseMain);
+ObjLoader.load(gl, './Assets/3D/scene.obj').then(mesh => {
+    var obj = new GameObject(renderer, matScene, mesh, 'Scene');
+    obj.transform.position.set(-15, -6, 10);
+    obj.transform.scale.set(1, 1, 1);
+    scene.push(obj);
 });
-
-ObjLoader.load(gl, './Assets/3D/LightHouseRed.obj').then(mesh => {
-    lighthouseRed = new GameObject(renderer, matRed, mesh, 'Lighthouse Red'); 
-    lighthouseRed.transform.position.set(0, -7, 0);
-    lighthouseRed.transform.scale.set(50, 50, 50);
-    scene.push(lighthouseRed);
-});
-
-ObjLoader.load(gl, './Assets/3D/LightHouseBrown.obj').then(mesh => {
-    lighthouseBrown = new GameObject(renderer, matBrown, mesh, 'Lighthouse Brown'); 
-    lighthouseBrown.transform.position.set(0, -7, 0);
-    lighthouseBrown.transform.scale.set(50, 50, 50);
-    scene.push(lighthouseBrown);
-});
-
-
-ObjLoader.load(gl, './Assets/3D/Clouds.obj').then(mesh => {
-    cloudObjects = new GameObject(renderer, matWhite, mesh, 'Clouds');
-    cloudObjects.transform.position.set(0, -7, 25);
-    cloudObjects.transform.scale.set(50, 50, 50);
-    cloudObjects.transform.rotation.set(0, Math.PI, 0);
-    scene.push(cloudObjects);
-});
-
-ObjLoader.load(gl, './Assets/3D/DetailedPlaneSand.obj').then(mesh => {
-    sandPlane = new GameObject(renderer, matGrey, mesh, 'Sand Plane');
-    sandPlane.transform.position.set(0, -7, 0);
-    sandPlane.transform.scale.set(50, 50, 50);
-    scene.push(sandPlane);
-});
-
 
 ObjLoader.load(gl, './Assets/3D/DetailedPlane.obj').then(mesh => {
-    waterFloor = new GameObject(renderer, matWater, mesh, 'Water Floor');
-    waterFloor.depthMaterial = matWaterDepth;
-    waterFloor.normalMaterial = matWaterNormal;
-    waterFloor.transform.position.set(0, -5, 25);
-    waterFloor.transform.scale.set(50, 50, 50);
-    scene.push(waterFloor);
-});
+    const offset = 100;
+    const yPos = -6.5;
+    const scale = 50;
 
+    // 2. Loop through X and Z (-1, 0, 1) to create the 3x3 grid
+    for (let x = (isMobile? 0 : -2); x <= (isMobile? 0 : 2); x++) {
+        for (let z = (isMobile? 0 : -1); z <= (isMobile? 2 : 3); z++) {
+            
+            // Create a new GameObject using the shared mesh
+            var obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}]`);
+            
+            // Set position based on the offset
+            // (0, -6, 0) will be the center tile when x=0 and z=0
+            obj.transform.position.set(x * offset, yPos, z * offset);
+            
+            // Set scale
+            obj.transform.scale.set(scale, scale, scale);
+            
+            // Add to scene
+            scene.push(obj);
+        }
+    }
+});
 
 const viewports = [
     { x: 0.0, y: 0.0, w: 1.0, h: 1.0, pass: 'Final' } // Default Fullscreen
@@ -371,29 +303,29 @@ game.setViewports = (mode) => {
     viewports[0].pass = mode; 
 };
 
-const editor = new Editor(game);
+
+
+if (!isMobile) {
+    const editor = new Editor(game);
+}
 
 const cameraController = new CameraController(camera, canvas);
 
 const profiler = ProfilerInstrumenter.attach(renderQueue, renderer);
 
+const size = 30.0;
+lightCamera.setOrthographic(-size, size, -size, size, 1.0, 100.0);
+
 function loop(now) {
     Time.update(now);
     game.deltaTime = Time.deltaTime; // Expose to editor for profiler
-    
+
     // Update Camera (WASD + Right Mouse)
     cameraController.update(Time.deltaTime);
 
-    if (lighthouseMain) {
-        // logic if any
-    }
-
-    // Update noise time
     matWater.setUniforms({ 
         'uTime': Time.time,
     });
-    matWaterDepth.setUniforms({ 'uTime': Time.time });
-    matWaterNormal.setUniforms({ 'uTime': Time.time });
     matSkybox.setUniforms({ 'uTime': Time.time });
 
 
@@ -420,8 +352,7 @@ function loop(now) {
         lightTarget[2] + lightDir[2] * dist
     );
     
-    const size = 30.0;
-    lightCamera.setOrthographic(-size, size, -size, size, 1.0, 100.0);
+
     
     lightCamera.transform.rotation.x = -Math.asin(lightDir[1]); 
     lightCamera.transform.rotation.y = Math.atan2(lightDir[0], lightDir[2]); 

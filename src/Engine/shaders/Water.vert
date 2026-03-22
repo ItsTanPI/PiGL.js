@@ -1,22 +1,49 @@
-attribute vec4 aVertexPosition;
-attribute vec2 aTexCoord;
+precision highp float;
 
-uniform mat4 uViewMatrix;
-uniform mat4 uProjectionMatrix;
-uniform mat4 uModelMatrix;
+#define VERTEX
 
-uniform lowp float uTime; 
-uniform lowp float uSpeed; 
-uniform vec2 uWind;  
+uniform vec2 uWind;
 uniform float uScale;
-uniform float udisplacement;
+uniform float uTime;
+uniform float uSpeed; 
+uniform float udisplacement; // Overall amplitude multiplier
 
+varying float vNoise; // Re-using this to pass wave height to fragment
 
-varying lowp vec2 vTexCoord;
-varying lowp float vNoise;
-varying vec3 vWorldPos;
+// Wave Parameter: vec4(DirectionX, DirectionZ, Steepness, Wavelength)
+// Steepness should be between 0.0 and 1.0 / (amplitude * wavelength)
+uniform vec4 uWaveA; 
+uniform vec4 uWaveB;
+uniform vec4 uWaveC;
 
-// Noise functions must be in both or shared via an include
+vec3 GerstnerWave(vec4 wave, vec3 p, inout vec3 tangent, inout vec3 binormal) {
+    float steepness = wave.z;
+    float wavelength = wave.w;
+    float k = 2.0 * 3.14159 / wavelength;
+    float c = sqrt(9.8 / k); // Phase speed
+    vec2 d = normalize(wave.xy);
+    float f = k * (dot(d, p.xz) - c * uTime * uSpeed);
+    float a = steepness / k;
+
+    // Tangent and Binormal partial derivatives for Normal calculation
+    tangent += vec3(
+        -d.x * d.x * (steepness * sin(f)),
+        d.x * (steepness * cos(f)),
+        -d.x * d.y * (steepness * sin(f))
+    );
+    binormal += vec3(
+        -d.x * d.y * (steepness * sin(f)),
+        d.y * (steepness * cos(f)),
+        -d.y * d.y * (steepness * sin(f))
+    );
+
+    return vec3(
+        d.x * (a * cos(f)),
+        a * sin(f),
+        d.y * (a * cos(f))
+    );
+}
+
 vec2 hash(vec2 p) {
     p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
     return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
@@ -34,10 +61,21 @@ float gradientNoise(vec2 p) {
     return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
 }
 
-void main() {
-    vec4 worldPos = uModelMatrix * aVertexPosition;
-    
+void vertex(inout vec3 worldPos, inout vec3 normal, inout vec3 color, inout vec2 texCoord)
+{
+    vec3 gridPoint = worldPos;
+    vec3 tangent = vec3(1.0, 0.0, 0.0);
+    vec3 binormal = vec3(0.0, 0.0, 1.0);
+    vec3 p = gridPoint;
+
+    // Sum multiple waves for complexity
+    p += GerstnerWave(uWaveA, gridPoint, tangent, binormal);
+    p += GerstnerWave(uWaveB, gridPoint, tangent, binormal);
+    p += GerstnerWave(uWaveC, gridPoint, tangent, binormal);
+
+
     float time = uTime * uSpeed;
+
     vec2 movement = uWind * time;
 
     // Use World Position XZ for noise so displacement is seamless across objects
@@ -49,13 +87,15 @@ void main() {
     float n3 = gradientNoise((noiseCoord * 4.0) + jitterMovement);
 
     float n = (n1 * 0.2) + (n2 * 0.5) + (n3 * 0.3);
-    vNoise = smoothstep(-0.4, 0.4, n);
-
-    // Displace the Y position based on noise
-    worldPos.y += vNoise * udisplacement; // Adjust '2.0' for displacement strength
-
-    gl_Position = uProjectionMatrix * uViewMatrix * worldPos;
+    p.y += smoothstep(-0.4, 0.4, n);
+    // Update normal using the cross product of the accumulated derivatives
+    normal = normalize(cross(binormal, tangent));
     
-    vTexCoord = aTexCoord;
-    vWorldPos = worldPos.xyz;
+    // Output final position
+    
+    float maxHeight = (uWaveA.z/uWaveA.w + uWaveB.z/uWaveB.w + uWaveC.z/uWaveC.w) / udisplacement;
+    // Map the real Y position (-max to +max) into a 0.0 to 1.0 range
+    vNoise = ((p.y-worldPos.y)/udisplacement);
+
+    worldPos = p;
 }

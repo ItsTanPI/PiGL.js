@@ -1,25 +1,37 @@
-precision lowp float;
+precision highp float;
 
-varying lowp vec2 vTexCoord;
-varying lowp float vNoise;
-varying vec3 vWorldPos;
+#define FRAGMENT
+varying float vNoise;
 
 uniform vec3 uColor1; 
 uniform vec3 uColor2; 
 uniform vec3 uColor3; 
 
-void main() {
-    float n = clamp(vNoise, 0.0, 1.0);
+uniform float uColorBands; // Set this to 3.0 or 4.0 for a retro look
 
-    // 1. Create a smooth transition for the first blend (Deep to Shallow)
-    // This blend happens between 0.0 and 0.6
-    float blend1 = smoothstep(0.0, 0.6, n);
+void fragment(inout vec4 color, inout vec3 normal, inout float emission)
+{
+    // 1. CLAMP & QUANTIZE
+    // vNoise is 0.0 at the bottom of a wave and 1.0 at the peak.
+    float n = clamp(vNoise, 0.0, 1.0);
+    
+    // Snap 'n' to discrete steps to create pixel-art color bands
+    float quantizedN = floor(n * uColorBands) / uColorBands;
+
+    // 2. APPLY COLOR BANDS
+    // Band 1: Deep to Shallow transition
+    float blend1 = smoothstep(0.0, 0.5, quantizedN);
     vec3 waterBase = mix(uColor1, uColor2, blend1);
 
-    // 2. Create a smooth transition for the second blend (Shallow to Foam)
-    // This blend starts late (at 0.7) and ends at the peak (1.0)
-    float blend2 = smoothstep(0.7, 1.0, n);
+    // Band 2: Shallow to Foam/Peak transition
+    // Since Gerstner waves are "pinched", uColor3 will only appear 
+    // at the very sharp tips of the waves.
+    float blend2 = smoothstep(0.0, 2.0, quantizedN);
     vec3 finalColor = mix(waterBase, uColor3, blend2);
 
-    gl_FragColor = vec4(finalColor, 1.0);
+    // 3. OUTPUT
+    // Set emission to 1.0 if you want the foam (uColor3) to glow slightly
+    emission = blend2; 
+    
+    color = vec4(finalColor, 0.8);
 }

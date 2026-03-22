@@ -1,4 +1,5 @@
-# PiGL.js
+***PROJECT is WIP***
+# PiGL.js 
 
 A custom WebGL rendering engine and editor built from scratch using vanilla JavaScript and GLSL. This project demonstrates a component-based architecture with a focus on multipass rendering and post-processing effects.
 

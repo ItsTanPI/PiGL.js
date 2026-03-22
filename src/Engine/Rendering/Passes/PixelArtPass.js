@@ -34,10 +34,12 @@ export class PixelArtPass extends ScreenRenderPass {
      * @param {WebGLTexture} depthTex - Depth texture for edge preservation
      * @param {WebGLTexture} normalTex - Normal texture for edge preservation
      */
-    setInputBuffers(sceneTex, depthTex, normalTex) {
+    setInputBuffers(sceneTex, depthTex, normalTex, posTex) {
         this.setTexture('uSceneTexture', sceneTex);
         this.setTexture('uDepthTexture', depthTex);
         this.setTexture('uNormalTexture', normalTex);
+        this.setTexture('uPositionTexture', posTex);
+
     }
 
     resize(width, height) {

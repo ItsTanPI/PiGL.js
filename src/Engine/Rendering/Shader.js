@@ -11,8 +11,8 @@ export class Shader {
      * 
      * @constructor
      * @param {WebGLRenderingContext} gl - The WebGL context.
-     * @param {string} vsSource - Vertex shader GLSL source code.
-     * @param {string} fsSource - Fragment shader GLSL source code.
+     * @param {string|string[]} vsSource - Vertex shader GLSL source code, or array of strings.
+     * @param {string|string[]} fsSource - Fragment shader GLSL source code, or array of strings.
      * 
      * @throws Logs compilation and linking errors to console if shader fails to compile/link.
      */
@@ -137,13 +137,20 @@ export class Shader {
      * 
      * @method loadShader
      * @param {number} type - WebGL shader type (gl.VERTEX_SHADER or gl.FRAGMENT_SHADER).
-     * @param {string} source - GLSL source code.
+     * @param {string|string[]} source - GLSL source code, or array of GLSL strings to be combined.
      * @returns {WebGLShader|null} Compiled shader or null on error.
      * @private
      */
     loadShader(type, source) {
+        let finalSource = source;
+        if (Array.isArray(source)) {
+            finalSource = source.join('\n');
+        }
+        if (Array.isArray(source)) {
+        }
+
         const shader = this.gl.createShader(type);
-        this.gl.shaderSource(shader, source);
+        this.gl.shaderSource(shader, finalSource);
         this.gl.compileShader(shader);
         if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
             console.error('Shader compile error:', this.gl.getShaderInfoLog(shader));

@@ -33,9 +33,11 @@ export class Texture {
         // Placeholder 1x1 pixel while loading
         gl.bindTexture(gl.TEXTURE_2D, this.texture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 0, 255, 255]));
-
         this.image.onload = () => {
             gl.bindTexture(gl.TEXTURE_2D, this.texture);
+            
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+            
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.image);
             
             // WebGL1 needs power of 2 for mips/wrapping, or clamp/linear for non-pot

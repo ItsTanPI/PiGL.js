@@ -50,13 +50,6 @@ export class ViewportPass extends RenderPass {
     
             this.material.setUniform('uTexture', finalTex); // Generic setter
             
-            // Set overlay if available (for outlines)
-            if (this.overlay) {
-                this.material.setUniform('uOverlay', this.overlay);
-                this.material.setUniform('uUseOverlay', 1.0); // Pass as float/int
-            } else {
-                this.material.setUniform('uUseOverlay', 0.0);
-            }
 
             this.fullScreenQuad.draw(this.material);
         }

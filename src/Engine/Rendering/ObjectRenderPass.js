@@ -27,12 +27,12 @@ export class ObjectRenderPass extends RenderPass {
      * @param {Material} [materialOverride=null] - Optional material to override object materials
      * @param {string} [name='ObjectPass'] - Descriptive name for this pass
      */
-    constructor(gl, width, height, renderTarget = null, materialOverride = null, name = 'ObjectPass') {
+    constructor(gl, width, height, renderTarget = null, renderMode = 0, name = 'ObjectPass') {
         super(gl, width, height, name);
         /** @type {RenderTarget} Target to render to, or null for screen */
         this.renderTarget = renderTarget;
         /** @type {Material} Optional material override for all objects */
-        this.materialOverride = materialOverride;
+        this.renderMode = renderMode;
         /** @type {number[]} RGBA clear color [r, g, b, a] */
         this.clearColor = [0.0, 0.0, 0.0, 1.0];
         /** @type {boolean} Whether to clear the depth buffer */
@@ -86,23 +86,13 @@ export class ObjectRenderPass extends RenderPass {
         // Render scene objects
         if (scene && Array.isArray(scene)) {
             for (const obj of scene) {
-                if (this.materialOverride) {
-                    let materialToUse = this.materialOverride;
-                    if (this.name === 'Depth Pass' && obj.depthMaterial) {
-                        materialToUse = obj.depthMaterial;
-                    } else if (this.name === 'Normal Pass' && obj.normalMaterial) {
-                        materialToUse = obj.normalMaterial;
-                    } else if (this.name === 'Shadow Pass' && obj.shadowMaterial) {
-                        materialToUse = obj.shadowMaterial;
-                    }
-                    obj.render(renderCamera, this.renderTarget, materialToUse);
-                } else {
+                    obj.material.setUniform('uRenderMode', this.renderMode, '1i');
                     obj.render(renderCamera, this.renderTarget);
-                }
+                
             }
         } else if (scene && scene.render) {
              // Maybe scene is an object?
-             scene.render(renderCamera, this.renderTarget, this.materialOverride);
+             scene.render(renderCamera, this.renderTarget);
         }
 
         if (this.renderTarget) {
