@@ -46,44 +46,4 @@ export { InspectorWindow } from './Editor/Windows/InspectorWindow.js';
 export { MaterialWindow } from './Editor/Windows/MaterialWindow.js';
 export { RenderPassWindow } from './Editor/Windows/RenderPassWindow.js';
 export { ProfilerWindow } from './Editor/Windows/ProfilerWindow.js';
-
-// Shaders (raw imports for library consumers)
-import quadVert from './Engine/shaders/quad.vert?raw';
-import quadFrag from './Engine/shaders/quad.frag?raw';
-import quadScreenVert from './Engine/shaders/quad_screen.vert?raw';
-import quadScreenFrag from './Engine/shaders/quad_screen.frag?raw';
-import depthVert from './Engine/shaders/depth.vert?raw';
-import depthFrag from './Engine/shaders/depth.frag?raw';
-import normalVert from './Engine/shaders/normal.vert?raw';
-import normalFrag from './Engine/shaders/normal.frag?raw';
-import outlineFrag from './Engine/shaders/outline.frag?raw';
-import noiseFrag from './Engine/shaders/noise.frag?raw';
-import lightingVert from './Engine/shaders/lighting.vert?raw';
-import lightingFrag from './Engine/shaders/lighting.frag?raw';
-import shadowVert from './Engine/shaders/shadow.vert?raw';
-import shadowFrag from './Engine/shaders/shadow.frag?raw';
-import skyboxFrag from './Engine/shaders/skybox.frag?raw';
-import pixelArtFrag from './Engine/shaders/pixelart.frag?raw';
-import waterVert from './Engine/shaders/Water.vert?raw';
-import waterFrag from './Engine/shaders/Water.frag?raw';
-
-export const Shaders = {
-  quadVert,
-  quadFrag,
-  quadScreenVert,
-  quadScreenFrag,
-  depthVert,
-  depthFrag,
-  normalVert,
-  normalFrag,
-  outlineFrag,
-  noiseFrag,
-  lightingVert,
-  lightingFrag,
-  shadowVert,
-  shadowFrag,
-  skyboxFrag,
-  pixelArtFrag,
-  waterVert,
-  waterFrag,
-};
+export { InfoWindow } from './Editor/Windows/InfoWindow.js';

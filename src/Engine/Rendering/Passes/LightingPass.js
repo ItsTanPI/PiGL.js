@@ -38,6 +38,8 @@ export class LightingPass extends ScreenRenderPass {
      * @param {WebGLTexture} normalTex - Per-pixel normal vectors
      * @param {WebGLTexture} depthTex - Per-pixel depth values
      * @param {WebGLTexture} shadowTex - Shadow map depth comparison texture
+     * @param {WebGLTexture} roufTex - Pre-pixel Roughness value
+     * 
      */
     setInputBuffers(sceneTex, normalTex, depthTex, shadowTex, roufTex) {
         this.setTexture('uSceneTexture', sceneTex);

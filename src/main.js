@@ -192,7 +192,7 @@ renderQueue.addPass(skyboxPass);
 
 // 6. Pixel Art Pass
 const pixelArtPass = new PixelArtPass(gl, canvas.width, canvas.height, matPixelArt, pixelArtBuffer, 'PixelArt Pass');
-pixelArtPass.setInputBuffers(lightingBuffer.texture, depthBuffer.texture, normalBuffer.texture, roughnessBuffer.texture);
+pixelArtPass.setInputBuffers(lightingBuffer.texture, depthBuffer.texture, normalBuffer.texture);
 renderQueue.addPass(pixelArtPass);
 
 // 7. Viewport Pass
@@ -240,15 +240,6 @@ camera.setPerspective(0.8, aspect, 0.1, 1000.0);
 camera.transform.position.set(-16.2, 1.8, -47);
 camera.transform.rotation.set( 0.0, isMobile ? 3.24: 3.22, 0);
 
-let lighthouseMain = null;
-let lighthouseRed = null;
-let waterFloor = null;
-let sandPlane = null;
-let cloudObjects = null;
-let lighthouseBrown = null;
-let shipObject = null;
-
-
 ObjLoader.load(gl, './Assets/3D/scene.obj').then(mesh => {
     var obj = new GameObject(renderer, matScene, mesh, 'Scene');
     obj.transform.position.set(-15, -6, 10);
@@ -261,21 +252,15 @@ ObjLoader.load(gl, './Assets/3D/DetailedPlane.obj').then(mesh => {
     const yPos = -6.5;
     const scale = 50;
 
-    // 2. Loop through X and Z (-1, 0, 1) to create the 3x3 grid
     for (let x = (isMobile? 0 : -2); x <= (isMobile? 0 : 2); x++) {
         for (let z = (isMobile? 0 : -1); z <= (isMobile? 2 : 3); z++) {
             
-            // Create a new GameObject using the shared mesh
             var obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}]`);
             
-            // Set position based on the offset
-            // (0, -6, 0) will be the center tile when x=0 and z=0
             obj.transform.position.set(x * offset, yPos, z * offset);
             
-            // Set scale
             obj.transform.scale.set(scale, scale, scale);
             
-            // Add to scene
             scene.push(obj);
         }
     }
@@ -316,11 +301,11 @@ const profiler = ProfilerInstrumenter.attach(renderQueue, renderer);
 const size = 30.0;
 lightCamera.setOrthographic(-size, size, -size, size, 1.0, 100.0);
 
-function loop(now) {
+function loop(now) 
+{
     Time.update(now);
-    game.deltaTime = Time.deltaTime; // Expose to editor for profiler
+    game.deltaTime = Time.deltaTime;
 
-    // Update Camera (WASD + Right Mouse)
     cameraController.update(Time.deltaTime);
 
     matWater.setUniforms({ 
@@ -329,12 +314,9 @@ function loop(now) {
     matSkybox.setUniforms({ 'uTime': Time.time });
 
 
-    // --- Update Lights & Shadow Camera ---
-    // Read directly from material so editor changes reflect instantly
-    let lightDir = [0.5, 0.8, 0.2]; // Default
+    let lightDir = [0.5, 0.8, 0.2];
     if (matLighting.uniforms['uLightDir'] && matLighting.uniforms['uLightDir'].value) {
         const v = matLighting.uniforms['uLightDir'].value;
-        // Normalize for safe camera math
         const len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
         if (len > 0.001) {
             lightDir = [v[0]/len, v[1]/len, v[2]/len];
@@ -343,34 +325,14 @@ function loop(now) {
         }
     }
 
-    const lightTarget = [0, 0, 0];
-    const dist = 50.0;
-    
-    lightCamera.transform.position.set(
-        lightTarget[0] + lightDir[0] * dist,
-        lightTarget[1] + lightDir[1] * dist,
-        lightTarget[2] + lightDir[2] * dist
-    );
-    
-
-    
-    lightCamera.transform.rotation.x = -Math.asin(lightDir[1]); 
-    lightCamera.transform.rotation.y = Math.atan2(lightDir[0], lightDir[2]); 
-
-    lightCamera.updateView();
-
-
     camera.updateView();
 
-    // Re-apply viewport setup every frame to ensure current mode is used
     viewportPass.setViewports(viewports);
     shadowPass.camera = lightCamera;
 
-    // Update Projecton for both cameras in case settings changed in inspector
     camera.updateProjection();
     lightCamera.updateProjection();
 
-    // Update Skybox Uniforms
     if (matSkybox.uniforms['uSunColor']) {
         skyboxPass.setLight(lightDir, 
             matSkybox.uniforms['uSunColor'].value, 
@@ -381,9 +343,6 @@ function loop(now) {
 
     renderQueue.execute(renderer, scene, camera);
     
-    // Debugging - Manual is replaced by queue
-    // shadowPass.execute(renderer, scene, lightCamera);
-
     requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
