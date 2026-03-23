@@ -37,10 +37,13 @@ export class InfoWindow {
         const helpFolder = this.gui.addFolder('Instructions');
         const instructions = {
             move: 'WASD to move',
-            look: 'Right Mouse Button to look'
+            look: 'Right Mouse Button to look',
+            hideUi: 'H to hide Ui'
         };
         helpFolder.add(instructions, 'move').name('Movement').disable();
         helpFolder.add(instructions, 'look').name('Camera').disable();
+        helpFolder.add(instructions, 'hideUi').name('Ui').disable();
+
 
         const folder = this.gui.addFolder('Asset Credits');
         
