@@ -26,6 +26,9 @@ export class Profiler {
         /** @type {number} Calculated frames per second. */
         this.fps = 0;
         
+        /** @type {number[]} History of FPS for averaging. */
+        this.fpsHistory = [];
+
         /** @type {number[]} History of CPU times for averaging. */
         this.history = [];
         /** @type {number} Maximum entries to keep in history. */
@@ -65,6 +68,11 @@ export class Profiler {
         if (this.lastFrameStart > 0) {
             const delta = now - this.lastFrameStart;
             this.fps = 1000 / delta;
+            
+            this.fpsHistory.push(this.fps);
+            if (this.fpsHistory.length > 300) {
+                this.fpsHistory.shift();
+            }
         }
         this.lastFrameStart = now;
         this.metrics.startTime = now;
@@ -112,7 +120,20 @@ export class Profiler {
         if (!this.enabled || !this.currentPass) return;
         this.currentPass.endTime = performance.now();
         this.currentPass.duration = this.currentPass.endTime - this.currentPass.startTime;
+        this.addPassToHistory(this.currentPass.name, this.currentPass.duration);
         this.currentPass = null;
+    }
+
+    addPassToHistory(passName, duration) {
+        if (!this.passHistory) this.passHistory = {};
+        if (!this.passHistory[passName]) {
+            this.passHistory[passName] = [];
+        }
+        this.passHistory[passName].push(duration);
+        // Keep up to 300 to allow smooth zooming to higher averages
+        if (this.passHistory[passName].length > 300) {
+            this.passHistory[passName].shift();
+        }
     }
 
     /**
@@ -125,13 +146,14 @@ export class Profiler {
      * @param {number} endTime - Draw end timestamp (ms).
      * @returns {void}
      */
-    recordDrawCall(objectName, materialName, shaderNum, startTime, endTime) {
+    recordDrawCall(objectName, materialName, shaderNum, startTime, endTime, vertices = 0) {
         if (!this.enabled || !this.currentPass) return;
         this.currentPass.drawCalls.push({
             object: objectName,
             material: materialName,
             shader: shaderNum,
-            duration: endTime - startTime
+            duration: endTime - startTime,
+            vertices: vertices
         });
     }
 
@@ -159,12 +181,18 @@ export class ProfilerInstrumenter {
                 const pass = passes[i];
                 if (!pass.__profilerInstrumented) {
                     const originalPassExecute = pass.execute.bind(pass);
-                    const passName = pass.constructor.name;
                     
                     pass.execute = function(r, s, c) {
-                        if (profiler.enabled) profiler.beginPass(passName);
+                        const passName = pass.name || 'Unnamed Pass';
+                        if (profiler.enabled) {
+                            profiler.beginPass(passName);
+                            r.currentPassName = passName;
+                        }
                         originalPassExecute(r, s, c);
-                        if (profiler.enabled) profiler.endPass();
+                        if (profiler.enabled) {
+                            profiler.endPass();
+                            r.currentPassName = null;
+                        }
                     };
                     
                     pass.__profilerInstrumented = true;
@@ -179,15 +207,19 @@ export class ProfilerInstrumenter {
         // 2. Renderer Draw Instrumentation
         const originalDraw = renderer.draw.bind(renderer);
         renderer.draw = function(gameObject, camera, target, material) {
+            if (!profiler.enabled) {
+                originalDraw(gameObject, camera, target, material);
+                return;
+            }
+
             const t0 = performance.now();
             originalDraw(gameObject, camera, target, material);
             const t1 = performance.now();
             
-            if (profiler.enabled) {
-                const objName = gameObject ? gameObject.name : 'Unknown';
-                const matName = material ? material.name : 'Unknown';
-                profiler.recordDrawCall(objName, matName, 0, t0, t1);
-            }
+            const objName = gameObject ? gameObject.name : 'Unknown';
+            const matName = material ? material.name : 'Unknown';
+            const vCount = (gameObject && gameObject.mesh) ? gameObject.mesh.count : 6;
+            profiler.recordDrawCall(objName, matName, 0, t0, t1, vCount);
         };
 
         // Default disabled to save performance

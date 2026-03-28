@@ -38,6 +38,13 @@ export class InspectorWindow {
         const obj = this.selectedObject;
         const name = obj.name || 'GameObject';
 
+        // Basic Info
+        const infoFolder = this.gui.addFolder('Object Settings');
+        infoFolder.add(obj, 'name').name('Name').listen();
+        if (typeof obj.active !== 'undefined') {
+            infoFolder.add(obj, 'active').name('Active').listen();
+        }
+
         // Transform folder
         if (obj.transform) {
             const t = obj.transform;

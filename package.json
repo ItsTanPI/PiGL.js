@@ -1,10 +1,10 @@
 {
   "name": "pigl-js",
-  "version": "1.0.1",
-  "description": "Vanilla JS WebGL Project",
+  "version": "1.0.2",
+  "description": "A lightweight, shader-driven WebGL engine",
   "homepage": "https://itstanpi.github.io/PiGL.js/",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview",
     "predeploy": "npm run build",
@@ -21,7 +21,6 @@
   "files": [
     "dist/pigl.mjs",
     "dist/pigl.umd.js",
-    "docs/",
     "README.md"
   ],
   "main": "./dist/pigl.umd.js",

@@ -7,6 +7,10 @@ A custom WebGL rendering engine and editor built from scratch using vanilla Java
 
 [View Live Demo](https://itstanpi.github.io/PiGL.js/)
 
+## Source & Docs
+
+[GitHub](https://github.com/ItsTanPI/PiGL.js)
+
 ## Description
 
 PiGL.js is a lightweight 3D engine that implements a custom rendering pipeline. It supports standard 3D features like model loading and lighting, but its core strength lies in its flexible render pass system, allowing for complex visual effects like pixel art stylization, outlines, and water rendering. The project includes a built-in visual editor for inspecting the scene and profiling performance.

@@ -25,6 +25,8 @@ export class Renderer {
         this.currentPassDrawCalls = [];
         /** @type {Array} Detailed draw call information (for profiler). */
         this.drawCallDetails = [];
+        /** @type {string|null} Current pass name for detailed profiling. */
+        this.currentPassName = null;
         
         // Define a unit Quad (Triangle Strip) suitable for Sprite rendering
         // converted to separate arrays for Mesh class compatibility
@@ -163,8 +165,25 @@ export class Renderer {
         }
 
         // Draw Mesh
+        if (!this.currentPassName) {
+            mesh.draw();
+            this.drawCalls++;
+            return;
+        }
+
+        const start = performance.now();
         mesh.draw();
+        const end = performance.now();
+        
+        const callDuration = end - start;
         this.drawCalls++;
+
+        this.drawCallDetails.push({
+            pass: this.currentPassName,
+            object: gameObject.name,
+            duration: callDuration,
+            vertices: mesh.count
+        });
     }
 
     /**

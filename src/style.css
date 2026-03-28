@@ -9,3 +9,18 @@ canvas {
     width: 100vw;
     height: 100vh;
 }
+
+#hud {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    padding: 6px 10px;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    font-family: monospace;
+    font-size: 13px;
+    line-height: 1.2;
+    border-radius: 4px;
+    z-index: 9999;
+    pointer-events: none;
+}

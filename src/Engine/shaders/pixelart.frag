@@ -10,13 +10,14 @@ uniform float uPixelSize;
 uniform float uColorLevels;
 uniform vec2 uResolution;
 
-// Fine-tuned thresholds
+// New Uniform for Edge Control
+uniform float uEdgeWidth; // Try values between 1.0 and 3.0
+
 uniform float uDepthThreshold;
 uniform float uNormalThreshold;
 
-// Color modifiers for edges
-uniform float uSilhouetteDarkening; // Very dark for outer edges
-uniform float uCreaseDarkening;     // Subtler darkening for inner corners
+uniform float uSilhouetteDarkening;
+uniform float uCreaseDarkening;
 
 void main() {
     // 1. PIXELATION
@@ -29,27 +30,26 @@ void main() {
     vec3 normalCenter = texture2D(uNormalTexture, uv).rgb * 2.0 - 1.0;
     vec4 sceneColor = texture2D(uSceneTexture, uv);
 
-    // Quantize scene color early so edge colors are based on the "flat" art style
     vec3 quantizedColor = floor(sceneColor.rgb * uColorLevels) / uColorLevels;
 
     float depthEdge = 0.0;
     float normalEdge = 0.0;
 
     // 3. EDGE DETECTION LOOP
+    // We multiply the offset by uEdgeWidth to expand the search radius
     vec2 offsets[4];
-    offsets[0] = vec2(1.0, 0.0);
-    offsets[1] = vec2(-1.0, 0.0);
-    offsets[2] = vec2(0.0, 1.0);
-    offsets[3] = vec2(0.0, -1.0);
+    offsets[0] = vec2(1.0, 0.0) * uEdgeWidth;
+    offsets[1] = vec2(-1.0, 0.0) * uEdgeWidth;
+    offsets[2] = vec2(0.0, 1.0) * uEdgeWidth;
+    offsets[3] = vec2(0.0, -1.0) * uEdgeWidth;
 
     for(int i = 0; i < 4; i++) {
         vec2 neighborUV = uv + offsets[i] * texelSize;
         
-        // Depth logic
         float depthNeighbor = texture2D(uDepthTexture, neighborUV).r;
+        // Sensitivity usually needs to decrease as width increases
         depthEdge = max(depthEdge, abs(depthCenter - depthNeighbor));
 
-        // Normal logic
         vec3 normalNeighbor = texture2D(uNormalTexture, neighborUV).rgb * 2.0 - 1.0;
         normalEdge = max(normalEdge, (1.0 - dot(normalCenter, normalNeighbor)));
     }
@@ -57,16 +57,11 @@ void main() {
     // 4. ADAPTIVE COLOR LOGIC
     vec3 finalColor = quantizedColor;
 
-    // Is it an internal crease? (Normal-based)
     if (normalEdge > uNormalThreshold) {
-        // Darken the surface color rather than making it black
         finalColor = quantizedColor * uCreaseDarkening;
     }
 
-    // Is it a silhouette? (Depth-based)
-    // We do this second so silhouette (outer) edges override crease (inner) edges
-    if (depthEdge > uDepthThreshold) {
-        // Use a much heavier darkening for the outer silhouette
+    if (depthEdge > (uDepthThreshold / uEdgeWidth)) {
         finalColor = quantizedColor * uSilhouetteDarkening;
     }
 

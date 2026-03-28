@@ -20,6 +20,7 @@ export class GameObject {
      */
     constructor(renderer, material, mesh = null, name = "GameObject") {
         this.name = name;
+        this.active = true;
         this.transform = new Transform();
         this.renderer = renderer;
         this.material = material; 
@@ -39,6 +40,8 @@ export class GameObject {
      * The Renderer handles texture binding, uniform setting, and draw calls.
      */
     render(camera, target = undefined, material = null) {
+        if (!this.active) return;
+        
         // Ensure world matrix is updated before drawing
         this.transform.updateWorldMatrix();
         
