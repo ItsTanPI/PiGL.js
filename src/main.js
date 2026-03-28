@@ -250,24 +250,37 @@ ObjLoader.load(gl, './Assets/3D/scene.obj').then(mesh => {
     scene.push(obj);
 });
 
+
 ObjLoader.load(gl, './Assets/3D/DetailedPlane.obj').then(mesh => {
     const offset = 100;
     const yPos = -6.5;
     const scale = 50;
 
-    for (let x = (isMobile? 0 : -2); x <= (isMobile? 0 : 2); x++) {
-        for (let z = (isMobile? 0 : -1); z <= (isMobile? 2 : 3); z++) {
+
+    {
+        var obj = new GameObject(renderer, matWater, mesh, `Water Floor `);
             
-            var obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}]`);
-            
-            obj.transform.position.set(x * offset, yPos, z * offset);
+        obj.transform.position.set(0 * offset, yPos, 0 * offset);
             
             obj.transform.scale.set(scale, scale, scale);
             
             scene.push(obj);
-        }
     }
+
+    // for (let x = (isMobile? 0 : -2); x <= (isMobile? 0 : 2); x++) {
+    //     for (let z = (isMobile? 0 : -1); z <= (isMobile? 2 : 3); z++) {
+            
+    //         var obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}]`);
+            
+    //         obj.transform.position.set(x * offset, yPos, z * offset);
+            
+    //         obj.transform.scale.set(scale, scale, scale);
+            
+    //         scene.push(obj);
+    //     }
+    // }
 });
+
 
 const viewports = [
     { x: 0.0, y: 0.0, w: 1.0, h: 1.0, pass: 'Final' } // Default Fullscreen

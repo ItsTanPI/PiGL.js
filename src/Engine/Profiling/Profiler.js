@@ -13,6 +13,8 @@ export class Profiler {
     constructor() {
         /** @type {boolean} Is profiling currently enabled? */
         this.enabled = false;
+        /** @type {boolean} Are DevTools markers enabled? */
+        this.devToolsEnabled = false;
         /** @type {Object} Current frame metrics. */
         this.metrics = {
             startTime: 0,
@@ -66,7 +68,7 @@ export class Profiler {
      * @description Updates FPS calculation based on elapsed time since last beginFrame.
      */
     beginFrame() {
-        if (!this.enabled) return;
+        if (!this.enabled) return;        
         const now = performance.now();
         if (this.lastFrameStart > 0) {
             const delta = now - this.lastFrameStart;
@@ -93,6 +95,8 @@ export class Profiler {
      * @returns {void}
      */
     endFrame() {
+        console.log();
+        
         if (!this.enabled) return;
         this.metrics.endTime = performance.now();
         this.metrics.cpuTime = this.metrics.endTime - this.metrics.startTime;
@@ -106,6 +110,7 @@ export class Profiler {
      * @returns {void}
      */
     beginPass(passName) {
+        
         if (!this.enabled) return;
         const passMetric = {
             id: this.metrics.passes.length,
@@ -195,11 +200,20 @@ export class ProfilerInstrumenter {
                         if (profiler.enabled) {
                             profiler.beginPass(passName);
                             r.currentPassName = passName;
+                            if (profiler.devToolsEnabled) {
+                                performance.mark(`PassStart-${passName}`);
+                            }
                         }
                         originalPassExecute(r, s, c);
                         if (profiler.enabled) {
                             profiler.endPass();
                             r.currentPassName = null;
+                            if (profiler.devToolsEnabled) {
+                                performance.mark(`PassEnd-${passName}`);
+                                performance.measure(`Pass: ${passName}`, `PassStart-${passName}`, `PassEnd-${passName}`);
+                                performance.clearMarks(`PassStart-${passName}`);
+                                performance.clearMarks(`PassEnd-${passName}`);
+                            }
                         }
                     };
                     
@@ -220,12 +234,24 @@ export class ProfilerInstrumenter {
                 return;
             }
 
+            const objName = gameObject ? gameObject.name : 'Unknown';
+            const matName = material ? material.name : 'Unknown';
+            
+            if (profiler.devToolsEnabled) {
+                performance.mark(`DrawStart-${objName}`);
+            }
+
             const t0 = performance.now();
             originalDraw(gameObject, camera, target, material);
             const t1 = performance.now();
-            
-            const objName = gameObject ? gameObject.name : 'Unknown';
-            const matName = material ? material.name : 'Unknown';
+
+            if (profiler.devToolsEnabled) {
+                performance.mark(`DrawEnd-${objName}`);
+                performance.measure(`Draw: ${objName} [${matName}]`, `DrawStart-${objName}`, `DrawEnd-${objName}`);
+                performance.clearMarks(`DrawStart-${objName}`);
+                performance.clearMarks(`DrawEnd-${objName}`);
+            }
+
             const vCount = (gameObject && gameObject.mesh) ? gameObject.mesh.count : 6;
             profiler.recordDrawCall(objName, matName, 0, t0, t1, vCount);
         };

@@ -148,15 +148,8 @@ export class Renderer {
             // Handle Textures
             // Check if value is WebGLTexture OR if explicit type is '1i' (sampler)
             if (valueToSend instanceof WebGLTexture || (typeToSend === '1i' && valueToSend && typeof valueToSend === 'object')) {
-                 gl.activeTexture(gl.TEXTURE0 + textureUnit);
+                //  gl.activeTexture(gl.TEXTURE0 + textureUnit);
                  gl.bindTexture(gl.TEXTURE_2D, valueToSend);
-                 
-                 // If the texture was bound successfully, logic for unit
-                 if (gl.isTexture(valueToSend) || valueToSend instanceof WebGLTexture) {
-                    valueToSend = textureUnit;
-                    typeToSend = '1i'; // Ensure type is correct for sampler
-                    textureUnit++;
-                 }
             }
 
             // If we have an explicit type from Material, use it
@@ -174,7 +167,6 @@ export class Renderer {
         // this.gl.finish(); 
         const start = performance.now();
         mesh.draw();
-        // this.gl.finish(); 
         const end = performance.now();
 
         const callDuration = end - start;

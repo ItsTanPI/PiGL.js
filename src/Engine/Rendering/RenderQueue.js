@@ -56,7 +56,7 @@ export class RenderQueue {
         for (const pass of this.passes) {
             if (pass.enabled) {
                 pass.execute(renderer, scene, camera);
-                this.gl.finish()
+                // this.gl.finish()
             }
         }
     }

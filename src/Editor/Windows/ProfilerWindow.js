@@ -17,6 +17,7 @@ export class ProfilerWindow {
 
         this.stats = {
             enabled: true,
+            devToolsTrace: false,
             fps: 0,
             avgFps: 0,
             fps1Low: 0,
@@ -55,6 +56,12 @@ export class ProfilerWindow {
             if (game && game.profiler) {
                 if (v) game.profiler.enable();
                 else game.profiler.disable();
+            }
+        });
+        
+        this.gui.add(this.stats, 'devToolsTrace').name('DevTools Trace').onChange(v => {
+            if (game && game.profiler) {
+                game.profiler.devToolsEnabled = v;
             }
         });
 
