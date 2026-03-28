@@ -14,6 +14,8 @@ uniform float uHasTexture;
 void fragment(inout vec4 color, inout vec3 normal, inout float emission);
 
 void main() {
+    //gl_FragColor = vec4(1.0);
+
     vec4 color = uColor;
     if (uHasTexture > 0.1) {
         color *= texture2D(uMainTex, vTexCoord);

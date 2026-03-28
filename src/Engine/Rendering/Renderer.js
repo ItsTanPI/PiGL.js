@@ -171,10 +171,12 @@ export class Renderer {
             return;
         }
 
+        // this.gl.finish(); 
         const start = performance.now();
         mesh.draw();
+        // this.gl.finish(); 
         const end = performance.now();
-        
+
         const callDuration = end - start;
         this.drawCalls++;
 

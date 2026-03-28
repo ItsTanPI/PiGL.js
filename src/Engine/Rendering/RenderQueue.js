@@ -15,8 +15,10 @@ export class RenderQueue {
     /**
      * Creates a new render queue.
      */
-    constructor() {
+    constructor(gl) {
+
         /** @type {RenderPass[]} Array of render passes to execute */
+        this.gl = gl;
         this.passes = [];
     }
 
@@ -54,6 +56,7 @@ export class RenderQueue {
         for (const pass of this.passes) {
             if (pass.enabled) {
                 pass.execute(renderer, scene, camera);
+                this.gl.finish()
             }
         }
     }

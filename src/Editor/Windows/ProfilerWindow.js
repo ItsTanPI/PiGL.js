@@ -19,13 +19,15 @@ export class ProfilerWindow {
             enabled: true,
             fps: 0,
             avgFps: 0,
+            fps1Low: 0,
+            fps1High: 0,
             ms: 0,
             gpuTotal: 0,
             totalDrawCalls: 0,
             totalPasses: 0,
             totalVertices: 0,
             approxMemory: '0 MB',
-            pieMode: 'Current Frame',
+            pieMode: 'Average',
             avgFrames: 60
         };
 
@@ -35,6 +37,13 @@ export class ProfilerWindow {
         this.graphCanvas.style.background = '#222';
         this.graphCanvas.style.marginTop = '5px';
         this.container.appendChild(this.graphCanvas);
+
+        this.frameTimeCanvas = document.createElement('canvas');
+        this.frameTimeCanvas.style.width = '100%';
+        this.frameTimeCanvas.style.height = '100px';
+        this.frameTimeCanvas.style.background = '#222';
+        this.frameTimeCanvas.style.marginTop = '5px';
+        this.container.appendChild(this.frameTimeCanvas);
 
         this.init();
     }
@@ -51,6 +60,8 @@ export class ProfilerWindow {
 
         this.gui.add(this.stats, 'fps').name('FPS').disable().listen();
         this.gui.add(this.stats, 'avgFps').name('Avg FPS').disable().listen();
+        this.gui.add(this.stats, 'fps1Low').name('1% Low FPS').disable().listen();
+        this.gui.add(this.stats, 'fps1High').name('1% High FPS').disable().listen();
         this.gui.add(this.stats, 'ms').name('Frame Time (ms)').disable().listen();
         this.gui.add(this.stats, 'gpuTotal').name('GPU Time (est ms)').disable().listen();
         this.gui.add(this.stats, 'totalDrawCalls').name('Total Draw Calls').disable().listen();
@@ -73,7 +84,62 @@ export class ProfilerWindow {
         setInterval(() => {
             this.update();
             this.drawGraph();
+            this.drawFrameTimeGraph();
         }, 100);
+    }
+
+    drawFrameTimeGraph() {
+        const ctx = this.frameTimeCanvas.getContext('2d');
+        const profiler = this.editor.game.profiler;
+        if (!profiler || !profiler.enabled || !profiler.frameTimeHistory) return;
+
+        this.frameTimeCanvas.width = this.frameTimeCanvas.clientWidth;
+        this.frameTimeCanvas.height = this.frameTimeCanvas.clientHeight;
+        const w = this.frameTimeCanvas.width;
+        const h = this.frameTimeCanvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        const count = Math.min(profiler.frameTimeHistory.length, this.stats.avgFrames);
+        if (count < 2) return;
+
+        const data = [];
+        for (let i = profiler.frameTimeHistory.length - count; i < profiler.frameTimeHistory.length; i++) {
+            data.push(profiler.frameTimeHistory[i]);
+        }
+
+        // Draw line graph
+        let min = 0
+        let max = 100
+        if (max - min < 5) {
+            min = Math.max(0, min - 5);
+            max += 5;
+        }
+        const range = max - min || 1;
+
+        ctx.beginPath();
+        ctx.strokeStyle = '#4363d8'; // Blue line
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < data.length; i++) {
+            const x = (i / (data.length - 1)) * w;
+            const y = h - ((data[i] - min) / range) * h * 0.8 - h * 0.1; // padding 10% bottom/top
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // draw min/max labels
+        ctx.fillStyle = '#fff';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'left';
+        
+        ctx.textBaseline = 'top';
+        ctx.fillText(`Max: ${max.toFixed(1)}ms`, 5, 5);
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(`Min: ${min.toFixed(1)}ms`, 5, h - 5);
+        
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`Delta time: ${data[count-1].toFixed(2)}`, w - 5, 5);
     }
 
     drawGraph() {
@@ -211,12 +277,24 @@ export class ProfilerWindow {
         if (profiler.fpsHistory && profiler.fpsHistory.length > 0) {
             let sumFps = 0;
             let countFps = Math.min(profiler.fpsHistory.length, this.stats.avgFrames);
+            let sampleSet = [];
             for (let i = profiler.fpsHistory.length - countFps; i < profiler.fpsHistory.length; i++) {
                 sumFps += profiler.fpsHistory[i];
+                sampleSet.push(profiler.fpsHistory[i]);
             }
             this.stats.avgFps = Math.round(sumFps / countFps);
+
+            sampleSet.sort((a, b) => a - b);
+            let p1LowIdx = Math.floor(sampleSet.length * 0.01);
+            let p1HighIdx = Math.floor(sampleSet.length * 0.99);
+            if (p1HighIdx >= sampleSet.length) p1HighIdx = sampleSet.length - 1;
+            
+            this.stats.fps1Low = Math.round(sampleSet[p1LowIdx] || this.stats.fps);
+            this.stats.fps1High = Math.round(sampleSet[p1HighIdx] || this.stats.fps);
         } else {
             this.stats.avgFps = this.stats.fps;
+            this.stats.fps1Low = this.stats.fps;
+            this.stats.fps1High = this.stats.fps;
         }
 
         this.stats.ms = (profiler.metrics.cpuTime || 0).toFixed(2);

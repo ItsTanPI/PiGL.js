@@ -29,10 +29,13 @@ export class Profiler {
         /** @type {number[]} History of FPS for averaging. */
         this.fpsHistory = [];
 
+        /** @type {number[]} History of frametimes (delta) for graphs. */
+        this.frameTimeHistory = [];
+
         /** @type {number[]} History of CPU times for averaging. */
         this.history = [];
         /** @type {number} Maximum entries to keep in history. */
-        this.maxHistory = 60;
+        this.maxHistory = 300;
         /** @type {Object|null} Currently active pass being profiled. */
         this.currentPass = null;
     }
@@ -72,6 +75,11 @@ export class Profiler {
             this.fpsHistory.push(this.fps);
             if (this.fpsHistory.length > 300) {
                 this.fpsHistory.shift();
+            }
+
+            this.frameTimeHistory.push(delta);
+            if (this.frameTimeHistory.length > 300) {
+                this.frameTimeHistory.shift();
             }
         }
         this.lastFrameStart = now;

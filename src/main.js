@@ -152,7 +152,7 @@ const camera = new Camera();
 const lightCamera = new Camera(); // Camera for shadow casting
 
 const scene = [];
-const renderQueue = new RenderQueue();
+const renderQueue = new RenderQueue(gl);
 
 // 0. Shadow Pass
 const shadowPass = new ObjectRenderPass(gl, shadowBuffer.width, shadowBuffer.height, shadowBuffer, 4, 'Shadow Pass');
@@ -180,6 +180,7 @@ renderQueue.addPass(scenePass);
 const roughnessPass = new ObjectRenderPass(gl, canvas.width, canvas.height, roughnessBuffer, 1, 'Roughness Pass');
 roughnessPass.clearColor = [0.0, 0.0, 0.0, 1.0];
 renderQueue.addPass(roughnessPass);
+// gl.finish();
 
 // 4. Lighting Pass
 const lightingPass = new LightingPass(gl, canvas.width, canvas.height, matLighting, lightingBuffer, 'Lighting Pass');
@@ -249,24 +250,24 @@ ObjLoader.load(gl, './Assets/3D/scene.obj').then(mesh => {
     scene.push(obj);
 });
 
-// ObjLoader.load(gl, './Assets/3D/DetailedPlane.obj').then(mesh => {
-//     const offset = 100;
-//     const yPos = -6.5;
-//     const scale = 50;
+ObjLoader.load(gl, './Assets/3D/DetailedPlane.obj').then(mesh => {
+    const offset = 100;
+    const yPos = -6.5;
+    const scale = 50;
 
-//     for (let x = (isMobile? 0 : -2); x <= (isMobile? 0 : 2); x++) {
-//         for (let z = (isMobile? 0 : -1); z <= (isMobile? 2 : 3); z++) {
+    for (let x = (isMobile? 0 : -2); x <= (isMobile? 0 : 2); x++) {
+        for (let z = (isMobile? 0 : -1); z <= (isMobile? 2 : 3); z++) {
             
-//             var obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}]`);
+            var obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}]`);
             
-//             obj.transform.position.set(x * offset, yPos, z * offset);
+            obj.transform.position.set(x * offset, yPos, z * offset);
             
-//             obj.transform.scale.set(scale, scale, scale);
+            obj.transform.scale.set(scale, scale, scale);
             
-//             scene.push(obj);
-//         }
-//     }
-// });
+            scene.push(obj);
+        }
+    }
+});
 
 const viewports = [
     { x: 0.0, y: 0.0, w: 1.0, h: 1.0, pass: 'Final' } // Default Fullscreen
@@ -306,11 +307,7 @@ const size = 30.0;
 lightCamera.setOrthographic(-size, size, -size, size, 1.0, 100.0);
 
 function loop(now) 
-{
-    
-    
-    console.log(depthPass.executionTime);
-    
+{    
     Time.update(now);
     game.deltaTime = Time.deltaTime;
 
@@ -351,7 +348,6 @@ function loop(now)
 
     renderQueue.execute(renderer, scene, camera);
     
-    // Update HUD (FPS and delta time)
     const hud = document.getElementById('hud');
     if (hud) {
         // Current FPS: Pad to 3 digits (e.g., "060")
