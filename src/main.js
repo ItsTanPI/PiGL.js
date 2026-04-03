@@ -36,10 +36,10 @@ import masterFs from './Engine/shaders/ShaderLib/Master.frag?raw';
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
 const canvas = document.getElementById('glcanvas');
-const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+const gl = canvas.getContext('webgl2') || canvas.getContext('experimental-webgl');
 if (!gl) { alert('Unable to initialize WebGL.'); }
 
-gl.enable(gl.BLEND);
+gl.disable(gl.BLEND);
 gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 gl.enable(gl.DEPTH_TEST);
 gl.depthFunc(gl.LEQUAL);
@@ -47,14 +47,64 @@ gl.enable(gl.CULL_FACE);
 gl.cullFace(gl.BACK);
 gl.frontFace(gl.CCW);
 
-let sceneBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
-let depthBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST } );
-let roughnessBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST } );
-let normalBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
-let pixelArtBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
-let lightingBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
+gl.getExtension('OES_texture_float');
+gl.getExtension('OES_texture_half_float');
+gl.getExtension('OES_texture_float_linear');
+gl.getExtension('OES_texture_half_float_linear');
+gl.getExtension('WEBGL_color_buffer_float')
 
-let shadowBuffer = new RenderTarget(gl, 1024, 1024);
+// let sceneBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
+// let depthBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST } );
+// let roughnessBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST } );
+// let normalBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
+// let pixelArtBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
+// let lightingBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
+// let shadowBuffer = new RenderTarget(gl, 1024, 1024);
+
+// Albedo — 8bit RGBA is enough, no need for float
+let sceneBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, {
+    format: 'RGBA', precision: '8',
+    minFilter: gl.NEAREST, magFilter: gl.NEAREST
+});
+
+// // Depth — single channel, needs 32f for precision
+let depthBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, {
+    format: 'R', precision: '8',
+    depth: true, // you're storing depth manually in color, no need for depth renderbuffer
+    minFilter: gl.NEAREST, magFilter: gl.NEAREST
+});
+
+// // Roughness — single channel, 8bit is fine (0-1 value)
+let roughnessBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, {
+    format: 'R', precision: '8',
+    depth: true,
+    minFilter: gl.NEAREST, magFilter: gl.NEAREST
+});
+
+// // Normals — RG encoded or RGB, 16f to avoid banding
+let normalBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, {
+    format: 'RGB', precision: '8', // RGBA so you can pack roughness here later
+    depth: true,
+    minFilter: gl.NEAREST, magFilter: gl.NEAREST
+});
+
+// // Pixel art pass — 8bit RGBA, plain color output
+let pixelArtBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, {
+    format: 'RGB', precision: '8',
+    depth: false,
+    minFilter: gl.NEAREST, magFilter: gl.NEAREST
+});
+
+let lightingBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, {
+    format: 'RGB', precision: '8',
+    depth: false,
+    minFilter: gl.NEAREST, magFilter: gl.NEAREST
+});
+
+let shadowBuffer = new RenderTarget(gl, 1024, 1024, {
+    format: 'R', precision: '8',
+    depth: true // needs depth for shadow depth testing
+});
 
 const shaderMain = new Shader(gl, [masterVs], masterFs);
 const shaderScreen = new Shader(gl, screenVs, screenFs);
@@ -62,7 +112,6 @@ const shaderDisplacemet = new Shader(gl, [waterVs, masterVs], [waterFs, masterFs
 const shaderLighting = new Shader(gl, lightingVs, lightingFs);
 const shaderSkybox = new Shader(gl, screenVs, skyboxFs);
 const shaderPixelArt = new Shader(gl, screenVs, pixelArtFs);
-
 
 const shipTexture = new Texture(gl, './Assets/Textures/colormap.png');
 const matScene = new Material(shaderMain, 'Ship Mat');
@@ -257,28 +306,28 @@ ObjLoader.load(gl, './Assets/3D/DetailedPlane.obj').then(mesh => {
     const scale = 50;
 
 
-    {
-        var obj = new GameObject(renderer, matWater, mesh, `Water Floor `);
+    // {
+    //     var obj = new GameObject(renderer, matWater, mesh, `Water Floor `);
             
-        obj.transform.position.set(0 * offset, yPos, 0 * offset);
-            
-            obj.transform.scale.set(scale, scale, scale);
-            
-            scene.push(obj);
-    }
-
-    // for (let x = (isMobile? 0 : -2); x <= (isMobile? 0 : 2); x++) {
-    //     for (let z = (isMobile? 0 : -1); z <= (isMobile? 2 : 3); z++) {
-            
-    //         var obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}]`);
-            
-    //         obj.transform.position.set(x * offset, yPos, z * offset);
+    //     obj.transform.position.set(0 * offset, yPos, 0 * offset);
             
     //         obj.transform.scale.set(scale, scale, scale);
             
     //         scene.push(obj);
-    //     }
     // }
+
+    for (let x = (isMobile? 0 : -2); x <= (isMobile? 0 : 2); x++) {
+        for (let z = (isMobile? 0 : -1); z <= (isMobile? 2 : 3); z++) {
+            
+            var obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}]`);
+            
+            obj.transform.position.set(x * offset, yPos, z * offset);
+            
+            obj.transform.scale.set(scale, scale, scale);
+            
+            scene.push(obj);
+        }
+    }
 });
 
 
