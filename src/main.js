@@ -254,13 +254,19 @@ ObjLoader.load(gl, './Assets/3D/DetailedPlane.obj').then(mesh => {
 
     if(isMobile)
     {
-        var obj = new GameObject(renderer, matWater, mesh, `Water Floor `);
-            
-        obj.transform.position.set(0 * offset, yPos, 0 * offset);
-            
-            obj.transform.scale.set(scale, scale, scale);
-            
-            scene.push(obj);
+        for (let x = -1; x <= 1; x++) 
+        {
+            for (let z =  0; z <= 2; z++) {
+        
+                var obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}]`);
+        
+                obj.transform.position.set(x * offset, yPos, z * offset);
+        
+                obj.transform.scale.set(scale, scale, scale);
+        
+                scene.push(obj);
+            }
+        }
     }
     else
     {
@@ -309,11 +315,9 @@ game.setViewports = (mode) => {
 
 let profiler = null;
 
-if (false) {
+if (!isMobile) {
     const editor = new Editor(game);
     profiler = ProfilerInstrumenter.attach(renderQueue, renderer, game);
-    profiler.enable();
-    profiler.devToolsEnabled = true;
     game.profiler = profiler;
 }
 
