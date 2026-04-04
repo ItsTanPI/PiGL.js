@@ -1009,7 +1009,7 @@ void fragment(inout vec4 color, inout vec3 normal, inout float emission)\r
     vec3 finalColor = mix(waterBase, uColor3, blend2);\r
 \r
     emission = blend2; \r
-    color = vec4(finalColor, 0.1);\r
+    color = vec4(finalColor, 0.8);\r
 }`,Se=`precision highp float;\r
 \r
 attribute vec3 aVertexPosition;\r
@@ -1086,7 +1086,7 @@ void main() {\r
 \r
     if (uRenderMode == 0)\r
     {\r
-        gl_FragColor = color;\r
+        gl_FragColor = vec4(color.rgb, uRoughness);\r
     }\r
     else if (uRenderMode == 1) // Normal + depth\r
     {\r
