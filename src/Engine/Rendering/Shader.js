@@ -13,10 +13,12 @@ export class Shader {
      * @param {WebGLRenderingContext} gl - The WebGL context.
      * @param {string|string[]} vsSource - Vertex shader GLSL source code, or array of strings.
      * @param {string|string[]} fsSource - Fragment shader GLSL source code, or array of strings.
+     * @param {string|string[]} [tcSource=null] - Optional tessellation control shader source.
+     * @param {string|string[]} [teSource=null] - Optional tessellation evaluation shader source.
      * 
      * @throws Logs compilation and linking errors to console if shader fails to compile/link.
      */
-    constructor(gl, vsSource, fsSource) {
+    constructor(gl, vsSource, fsSource, tcSource = null, teSource = null) {
         /** @type {WebGLRenderingContext} */
         this.gl = gl;
         const vertexShader = this.loadShader(gl.VERTEX_SHADER, vsSource);
@@ -25,6 +27,22 @@ export class Shader {
         /** @type {WebGLProgram} Compiled shader program. */
         this.program = gl.createProgram();
         gl.attachShader(this.program, vertexShader);
+        
+        // Optionally attach tessellation shaders if provided and supported
+        let tessellationSupported = false;
+        if (tcSource && teSource) {
+            const tcShader = this.loadShader(0x8E88, tcSource); // GL_TESS_CONTROL_SHADER
+            const teShader = this.loadShader(0x8E87, teSource); // GL_TESS_EVALUATION_SHADER
+            
+            if (tcShader && teShader) {
+                gl.attachShader(this.program, tcShader);
+                gl.attachShader(this.program, teShader);
+                tessellationSupported = true;
+            } else {
+                console.warn('Tessellation shaders not supported, falling back to vertex/fragment only');
+            }
+        }
+        
         gl.attachShader(this.program, fragmentShader);
         gl.linkProgram(this.program);
 
@@ -36,6 +54,8 @@ export class Shader {
         this.uniforms = {};
         /** @type {Object<string, number>} Cached attribute locations. */
         this.attributes = {};
+        /** @type {boolean} Whether tessellation is supported and active. */
+        this.tessellationSupported = tessellationSupported;
     }
 
     /**
@@ -136,7 +156,7 @@ export class Shader {
      * Compiles a single shader (vertex or fragment).
      * 
      * @method loadShader
-     * @param {number} type - WebGL shader type (gl.VERTEX_SHADER or gl.FRAGMENT_SHADER).
+     * @param {number} type - WebGL shader type (gl.VERTEX_SHADER, gl.FRAGMENT_SHADER, or 0x8E88/0x8E87 for tessellation).
      * @param {string|string[]} source - GLSL source code, or array of GLSL strings to be combined.
      * @returns {WebGLShader|null} Compiled shader or null on error.
      * @private
@@ -146,10 +166,19 @@ export class Shader {
         if (Array.isArray(source)) {
             finalSource = source.join('\n');
         }
-        if (Array.isArray(source)) {
-        }
 
-        const shader = this.gl.createShader(type);
+        let shader;
+        try {
+            shader = this.gl.createShader(type);
+            if (!shader) {
+                console.warn(`Shader type ${type} not supported`);
+                return null;
+            }
+        } catch (e) {
+            console.warn(`Shader type ${type} not supported:`, e.message);
+            return null;
+        }
+        
         this.gl.shaderSource(shader, finalSource);
         this.gl.compileShader(shader);
         if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {

@@ -93,11 +93,29 @@ export class ObjectRenderPass extends RenderPass {
             this.gl.clear(flags);
         }
 
+        // Recursive render function for object hierarchies
+        const renderObjectAndChildren = (obj) => {
+            if (!obj.active) return;
+            if (obj.material) {
+                obj.material.setUniform('uRenderMode', this.renderMode, '1i');
+            }
+            obj.render(renderCamera, this.renderTarget);
+            
+            // Render children recursively
+            if (obj.transform && obj.transform.children) {
+                for (const child of obj.transform.children) {
+                    // Create a wrapper GameObject if child doesn't have one
+                    if (child.gameObject) {
+                        renderObjectAndChildren(child.gameObject);
+                    }
+                }
+            }
+        };
+        
         // Render scene objects
         if (scene && Array.isArray(scene)) {
             for (const obj of scene) {
-                obj.material.setUniform('uRenderMode', this.renderMode, '1i');
-                obj.render(renderCamera, this.renderTarget);
+                renderObjectAndChildren(obj);
             }
         } else if (scene && scene.render) {
             scene.render(renderCamera, this.renderTarget);

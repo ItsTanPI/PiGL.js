@@ -14,6 +14,7 @@ import { ViewportPass } from './Engine/Rendering/Passes/ViewportPass.js';
 import { LightingPass } from './Engine/Rendering/Passes/LightingPass.js';
 import { SkyboxPass } from './Engine/Rendering/Passes/SkyboxPass.js';
 import { PixelArtPass } from './Engine/Rendering/Passes/PixelArtPass.js';
+import { WireframePass } from './Engine/Rendering/Passes/WireframePass.js';
 
 import { ProfilerInstrumenter } from './Engine/Profiling/Profiler.js';
 import { Editor } from './Editor/Editor.js';
@@ -29,6 +30,8 @@ import skyboxFs from './Engine/shaders/skybox.frag?raw';
 import pixelArtFs from './Engine/shaders/pixelart.frag?raw';
 import waterVs from './Engine/shaders/Water.vert?raw';
 import waterFs from './Engine/shaders/Water.frag?raw';
+// import waterNFs from './Engine/shaders/WaterNormal.frag?raw';
+
 
 import masterVs from './Engine/shaders/ShaderLib/Master.vert?raw';
 import masterFs from './Engine/shaders/ShaderLib/Master.frag?raw';
@@ -80,6 +83,7 @@ let lightingBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight,
 const shaderMain = new Shader(gl, masterVs, masterFs);
 const shaderScreen = new Shader(gl, screenVs, screenFs);
 const shaderDisplacemet = new Shader(gl, [waterVs, masterVs], [waterFs, masterFs]);
+
 const shaderLighting = new Shader(gl, lightingVs, lightingFs);
 const shaderSkybox = new Shader(gl, screenVs, skyboxFs);
 const shaderPixelArt = new Shader(gl, screenVs, pixelArtFs);
@@ -91,6 +95,7 @@ const matLighting = new Material(shaderLighting, 'PPL Lighting');
 const matSkybox = new Material(shaderSkybox, 'Skybox');
 const matPixelArt = new Material(shaderPixelArt, 'PixelArt');
 const matScreen = new Material(shaderScreen, 'Screen'); 
+
 
 matScene.setUniforms({ 
     'uColor': [1.0, 1.0, 1.0, 1.0], 
@@ -144,11 +149,16 @@ const waterConfig = {
     'uColor1': [0.094, 0.271, 0.494], // Deep Navy (The pits/troughs)
     'uColor2': [0.196, 0.404, 0.624],  // Tropical Turquoise (The slopes)
     'uColor3': [0.8, 0.8, 1.0],   // Sea Foam White (The crests)
+    
+    // Smoothstep ranges for color transitions (x = min, y = max)
+    'uColor1Smoothstep': [0.0, 0.5],   // Deep to Turquoise transition
+    'uColor2Smoothstep': [0.55, 1.0],   // Turquoise to Foam transition
+    
     'uWaveA': [-0.35, 0.70, 0.13, 3.92],
     'uWaveB': [-0.95, 0.51, 0.10, 2.25],
     'uWaveC': [1.0, -4.66, 0.10, 20.57],
     'uColorBands' : 3.0,
-    'uRoughness':0.0
+    'uRoughness': 0.0,
 };
 
 
@@ -199,6 +209,12 @@ const pixelArtPass = new PixelArtPass(gl, canvas.width, canvas.height, matPixelA
 pixelArtPass.setInputBuffers(lightingBuffer.texture, Gbuffer.texture);
 renderQueue.addPass(pixelArtPass);
 
+// 6b. Wireframe Pass (disabled by default, toggle with 'T' key)
+const wireframePass = new WireframePass(gl, canvas.width, canvas.height, pixelArtBuffer, 'Wireframe Pass');
+wireframePass.setWireColor(0.0, 1.0, 0.0);  // Green wireframe
+wireframePass.setOpacity(1.0);
+renderQueue.addPass(wireframePass);
+
 // 7. Viewport Pass
 const viewportPass = new ViewportPass(gl, canvas.width, canvas.height, matScreen);
 viewportPass.setBuffer('Final', pixelArtBuffer.texture);
@@ -238,7 +254,6 @@ const aspect = canvas.width / canvas.height;
 camera.setPerspective(0.8, aspect, 0.1, 1000.0);
 camera.transform.position.set(-16.2, 1.8, -47);
 camera.transform.rotation.set( 0.0, isMobile ? 3.24: 3.22, 0);
-
 ObjLoader.load(gl, './Assets/3D/scene.obj').then(mesh => {
     var obj = new GameObject(renderer, matScene, mesh, 'Scene');
     obj.transform.position.set(-15, -6, 10);
@@ -246,47 +261,70 @@ ObjLoader.load(gl, './Assets/3D/scene.obj').then(mesh => {
     scene.push(obj);
 });
 
+// parentoj=  scene[0];
 
-ObjLoader.load(gl, './Assets/3D/DetailedPlane.obj').then(mesh => {
-    const offset = 100;
+
+var CenterLOD = null;
+
+
+Promise.all([
+    ObjLoader.load(gl, './Assets/3D/LOD1.obj'),
+    ObjLoader.load(gl, './Assets/3D/LOD2.obj'),
+    ObjLoader.load(gl, './Assets/3D/LOD3.obj')
+]).then(([meshLOD1, meshLOD2, meshLOD3]) => {
+
+    const offset = 80;
     const yPos = -6.5;
     const scale = 50;
+    const radius = 5;
 
-    if(isMobile)
-    {
-        for (let x = -1; x <= 1; x++) 
-        {
-            for (let z =  0; z <= 2; z++) {
-        
-                var obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}]`);
-        
-                obj.transform.position.set(x * offset, yPos, z * offset);
-        
-                obj.transform.scale.set(scale, scale, scale);
-        
-                scene.push(obj);
-            }
+    // Mobile: LOD2 center, LOD3 everything else
+    // Desktop: LOD1 center, LOD2 mid ring, LOD3 outer
+    const LOD1_RADIUS = isMobile ? 1.0 : 0.0;  // -1 = never triggers on mobile
+    const LOD2_RADIUS = isMobile ? -1 : 2.0;
+
+    const centerMesh = isMobile ? meshLOD2 : meshLOD1;
+    const centerLabel = isMobile ? 'LOD2' : 'LOD1';
+
+    // --- Pass 1: center ---
+    const centerObj = new GameObject(renderer, matWater, centerMesh, `Water Floor [0,0] ${centerLabel}`);
+    centerObj.transform.position.set(0, yPos, 0);
+    centerObj.transform.scale.set(scale, scale, scale);
+    scene.push(centerObj);
+    CenterLOD = centerObj;
+
+    if (isMobile) {
+    // Triangle / FOV shape for mobile
+    for (let z = 0; z <= radius; z++) {
+        for (let x = -z; x <= z; x++) {
+            if (x === 0 && z === 0) continue;
+
+            const obj = new GameObject(renderer, matWater, meshLOD3, `Water Floor [${x},${z}] LOD3`);
+            centerObj.transform.add(obj.transform);
+            obj.transform.setGlobalPosition(x * offset, yPos, z * offset);
         }
     }
-    else
-    {
-        
-        for (let x = -2; x <= 2; x++) 
-        {
-            for (let z =  -1; z <= 3; z++) {
-        
-                var obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}]`);
-        
-                obj.transform.position.set(x * offset, yPos, z * offset);
-        
-                obj.transform.scale.set(scale, scale, scale);
-        
-                scene.push(obj);
+    } else {
+        // Full grid for desktop
+        for (let x = -radius; x <= radius; x++) {
+            for (let z = -radius; z <= radius; z++) {
+                if (x === 0 && z === 0) continue;
+
+                const dist = Math.sqrt(x * x + z * z);
+                const mesh = dist <= LOD1_RADIUS ? meshLOD1 
+                        : dist <= LOD2_RADIUS ? meshLOD2 
+                        : meshLOD3;
+                const lodLevel = dist <= LOD1_RADIUS ? 1 
+                            : dist <= LOD2_RADIUS ? 2 
+                            : 3;
+
+                const obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}] LOD${lodLevel}`);
+                centerObj.transform.add(obj.transform);
+                obj.transform.setGlobalPosition(x * offset, yPos, z * offset);
             }
         }
     }
 });
-
 
 const viewports = [
     { x: 0.0, y: 0.0, w: 1.0, h: 1.0, pass: 'Final' } // Default Fullscreen
@@ -304,6 +342,7 @@ const game = {
     renderQueue,
     materials,
     viewportPass,
+    wireframePass,
     textures: {
         ship: shipTexture
     }
@@ -322,6 +361,13 @@ if (!isMobile) {
 }
 
 const cameraController = new CameraController(camera, canvas);
+
+// Keyboard shortcuts for debugging
+window.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() === 't') {
+        wireframePass.toggle();
+    }
+});
 
 // Pre-allocate light direction array for per-frame loop
 const lightDir = [0.5, 0.8, 0.2];

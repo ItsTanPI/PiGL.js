@@ -43,10 +43,33 @@ export class HierarchyWindow {
             this.gui.add({ select: () => this.editor.selectObject(lightCamera) }, 'select').name('Light Camera');
         }
         
+        // Recursive function to add object and its children
+        const addObjectAndChildren = (obj, parentFolder = null) => {
+            // Skip null objects
+            if (!obj) return;
+            
+            const folder = parentFolder || this.gui;
+            const name = obj.name || `Object`;
+            
+            // Add select button for this object
+            folder.add({ select: () => this.editor.selectObject(obj) }, 'select').name(name);
+            
+            // Add children recursively
+            if (obj.transform && obj.transform.children && obj.transform.children.length > 0) {
+                const childFolder = folder.addFolder(`${name} Children`);
+                for (const childTransform of obj.transform.children) {
+                    if (childTransform.gameObject) {
+                        addObjectAndChildren(childTransform.gameObject, childFolder);
+                    }
+                }
+            }
+        };
+        
         const objects = this.editor.game.scene || [];
         objects.forEach((obj, index) => {
-            const name = obj.name || `Object ${index}`;
-            this.gui.add({ select: () => this.editor.selectObject(obj) }, 'select').name(name);
+            if (obj) {  // Only process non-null objects
+                addObjectAndChildren(obj);
+            }
         });
-    }
+}
 }

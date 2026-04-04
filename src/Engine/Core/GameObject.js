@@ -22,6 +22,7 @@ export class GameObject {
         this.name = name;
         this.active = true;
         this.transform = new Transform();
+        this.transform.gameObject = this; // Back-reference for hierarchy traversal
         this.renderer = renderer;
         this.material = material; 
         this.mesh = mesh;

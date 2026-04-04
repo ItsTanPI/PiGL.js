@@ -16,7 +16,7 @@ export class ProfilerWindow {
         this.gui.domElement.style.height = 'auto';
 
         this.stats = {
-            enabled: true,
+            enabled: false,
             devToolsTrace: false,
             fps: 0,
             avgFps: 0,

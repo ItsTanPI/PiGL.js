@@ -43,6 +43,10 @@ void main() {
         
         linearDepth /= far; 
 
+        // #ifdef NORMAL
+        //     normalfrag(normal)
+        // #endif
+
         gl_FragColor = vec4(normal * 0.5 + 0.5, linearDepth);
     } 
     else

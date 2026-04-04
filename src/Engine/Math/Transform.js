@@ -58,6 +58,8 @@ export class Transform {
         }
         child.parent = this;
         this.children.push(child);
+        // Mark child as dirty so it recalculates world matrix
+        child.markDirty();
     }
 
     /**
@@ -141,5 +143,60 @@ export class Transform {
         for (let i = 0; i < this.children.length; i++) {
             this.children[i].updateWorldMatrix();
         }
+    }
+
+    /**
+     * Gets the global (world) position of this transform.
+     * @returns {Vector3} The world position.
+     */
+    get globalPosition() {
+        this.updateWorldMatrix();
+        return new Vector3(
+            this.worldMatrix[12],
+            this.worldMatrix[13],
+            this.worldMatrix[14]
+        );
+    }
+
+    /**
+     * Sets the global (world) position of this transform.
+     * Keeps the current parent and adjusts the local position to match the desired world position.
+     * @param {number} x 
+     * @param {number} y 
+     * @param {number} z 
+     */
+    setGlobalPosition(x, y, z) {
+        if (!this.parent) {
+            this.position.set(x, y, z);
+            return;
+        }
+
+        // We need to transform the given world position into our parent's local space
+        this.parent.updateWorldMatrix();
+        const parentInverse = new Float32Array(16);
+        Matrix.invert(parentInverse, this.parent.worldMatrix);
+
+        // Multiply world pos by parent inverse matrix
+        const wX = x;
+        const wY = y;
+        const wZ = z;
+
+        const lX = parentInverse[0] * wX + parentInverse[4] * wY + parentInverse[8] * wZ + parentInverse[12];
+        const lY = parentInverse[1] * wX + parentInverse[5] * wY + parentInverse[9] * wZ + parentInverse[13];
+        const lZ = parentInverse[2] * wX + parentInverse[6] * wY + parentInverse[10] * wZ + parentInverse[14];
+
+        this.position.set(lX, lY, lZ);
+    }
+
+    /**
+     * Gets the global (world) scale of this transform by extracting from world matrix.
+     * @returns {Vector3} The global scale.
+     */
+    get globalScale() {
+        this.updateWorldMatrix();
+        const sx = Math.sqrt(this.worldMatrix[0]**2 + this.worldMatrix[1]**2 + this.worldMatrix[2]**2);
+        const sy = Math.sqrt(this.worldMatrix[4]**2 + this.worldMatrix[5]**2 + this.worldMatrix[6]**2);
+        const sz = Math.sqrt(this.worldMatrix[8]**2 + this.worldMatrix[9]**2 + this.worldMatrix[10]**2);
+        return new Vector3(sx, sy, sz);
     }
 }

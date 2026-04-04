@@ -9,9 +9,8 @@ uniform float uSpeed;
 uniform float udisplacement; // Overall amplitude multiplier
 
 varying float vNoise; // Re-using this to pass wave height to fragment
+varying vec3 vWorldPos; // Pass world position to fragment for wave calculations
 
-// Wave Parameter: vec4(DirectionX, DirectionZ, Steepness, Wavelength)
-// Steepness should be between 0.0 and 1.0 / (amplitude * wavelength)
 uniform vec4 uWaveA; 
 uniform vec4 uWaveB;
 uniform vec4 uWaveC;
@@ -63,6 +62,7 @@ float gradientNoise(vec2 p) {
 
 void vertex(inout vec3 worldPos, inout vec3 normal, inout vec3 color, inout vec2 texCoord)
 {
+    
     vec3 gridPoint = worldPos;
     vec3 tangent = vec3(1.0, 0.0, 0.0);
     vec3 binormal = vec3(0.0, 0.0, 1.0);
@@ -92,10 +92,8 @@ void vertex(inout vec3 worldPos, inout vec3 normal, inout vec3 color, inout vec2
     normal = normalize(cross(binormal, tangent));
     
     // Output final position
-    
-    float maxHeight = (uWaveA.z/uWaveA.w + uWaveB.z/uWaveB.w + uWaveC.z/uWaveC.w) / udisplacement;
-    // Map the real Y position (-max to +max) into a 0.0 to 1.0 range
     vNoise = ((p.y-worldPos.y)/udisplacement);
+    vWorldPos = worldPos; // Pass original world position to fragment
 
     worldPos = p;
 }

@@ -96,5 +96,18 @@ export class InspectorWindow {
                 }
             }}, 'select').name('Open in Material Editor');
         }
+        
+        // Children list
+        if (obj.transform && obj.transform.children && obj.transform.children.length > 0) {
+            const childFolder = this.gui.addFolder('Children');
+            obj.transform.children.forEach((childTransform, index) => {
+                if (childTransform.gameObject) {
+                    const child = childTransform.gameObject;
+                    const childName = child.name || `Child ${index}`;
+                    childFolder.add({ select: () => this.editor.selectObject(child) }, 'select').name(childName);
+                }
+            });
+            childFolder.open();
+        }
     }
 }
