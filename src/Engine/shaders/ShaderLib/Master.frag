@@ -14,7 +14,7 @@ uniform float uHasTexture;
 void fragment(inout vec4 color, inout vec3 normal, inout float emission);
 
 void main() {
-    //gl_FragColor = vec4(1.0);
+    // gl_FragColor = vec4(1.0);
 
     vec4 color = uColor;
     if (uHasTexture > 0.1) {
@@ -31,17 +31,9 @@ void main() {
 
     if (uRenderMode == 0)
     {
-        gl_FragColor = color;
+        gl_FragColor = vec4(color.rgb, uRoughness);
     }
-    else if(uRenderMode == 1) // uRoughness
-    {
-        gl_FragColor = vec4(uRoughness,0.0, 0.0, 1.0 );
-    }
-    else if (uRenderMode == 2)  // normal
-    {
-        gl_FragColor = vec4(normal * 0.5 + 0.5, 1.0);
-    } 
-    else if (uRenderMode == 3) //depth
+    else if (uRenderMode == 1) // Normal + depth
     {
         float near = 0.1; 
         float far = 1000.0; 
@@ -51,14 +43,11 @@ void main() {
         
         linearDepth /= far; 
 
-        gl_FragColor = vec4(vec3(linearDepth), 1.0);
+        gl_FragColor = vec4(normal * 0.5 + 0.5, linearDepth);
     } 
-    else if (uRenderMode == 4) //shadow
-    {
-        gl_FragColor = vec4(gl_FragCoord.z, gl_FragCoord.z, gl_FragCoord.z, 1.0);
-    }
     else
     {
         gl_FragColor = vec4(vPosition, 1.0);
     }
+    // gl_FragDepth = 0.0;
 }

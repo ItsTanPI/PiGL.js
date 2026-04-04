@@ -63,4 +63,27 @@ export class Texture {
     isPowerOf2(value) {
         return (value & (value - 1)) === 0;
     }
+
+    /**
+     * Calculate the approximate GPU memory used by this texture.
+     * Assumes RGBA 8-bit format, including mipmaps if applicable.
+     * @returns {number} Memory in bytes
+     */
+    getMemorySize() {
+        if (!this.loaded || !this.image) return 0;
+
+        const width = this.image.width;
+        const height = this.image.height;
+        
+        // RGBA 8-bit = 4 bytes per pixel
+        let bytes = width * height * 4;
+
+        // Add mipmap chain memory if applicable
+        if (this.isPowerOf2(width) && this.isPowerOf2(height)) {
+            // Mipmap chain adds 1/3 of original size
+            bytes = bytes * 1.33;
+        }
+
+        return Math.round(bytes);
+    }
 }

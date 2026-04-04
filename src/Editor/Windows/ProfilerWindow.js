@@ -28,6 +28,9 @@ export class ProfilerWindow {
             totalPasses: 0,
             totalVertices: 0,
             approxMemory: '0 MB',
+            memoryVertices: '0 MB',
+            memoryRenderTargets: '0 MB',
+            memoryTextures: '0 MB',
             pieMode: 'Average',
             avgFrames: 60
         };
@@ -74,7 +77,10 @@ export class ProfilerWindow {
         this.gui.add(this.stats, 'totalDrawCalls').name('Total Draw Calls').disable().listen();
         this.gui.add(this.stats, 'totalPasses').name('Total Passes').disable().listen();
         this.gui.add(this.stats, 'totalVertices').name('Total Vertices').disable().listen();
-        this.gui.add(this.stats, 'approxMemory').name('Pass Mesh Mem').disable().listen();
+        this.gui.add(this.stats, 'approxMemory').name('Total Memory').disable().listen();
+        this.gui.add(this.stats, 'memoryVertices').name('  ├─ Vertices').disable().listen();
+        this.gui.add(this.stats, 'memoryRenderTargets').name('  ├─ RenderTargets').disable().listen();
+        this.gui.add(this.stats, 'memoryTextures').name('  └─ Textures').disable().listen();
 
         // Control for pie chart mode
         this.gui.add(this.stats, 'pieMode', ['Current Frame', 'Average']).name('Graph Mode');
@@ -321,9 +327,18 @@ export class ProfilerWindow {
         this.stats.totalDrawCalls = totalDC;
         this.stats.totalVertices = totalVerts;
         this.stats.gpuTotal = gpuTime.toFixed(3);
-        // Approx 32 bytes per vertex (pos+uv+norm) + maybe indices
-        // Just a rough estimate for the rendered meshes in this frame
-        this.stats.approxMemory = ((totalVerts * 32) / (1024 * 1024)).toFixed(2) + ' MB';
+
+        // Get memory metrics from profiler
+        const memory = profiler.metrics.memory || { vertices: 0, renderTargets: 0, textures: 0, total: 0 };
+        const mbVertices = (memory.vertices / (1024 * 1024)).toFixed(2);
+        const mbRenderTargets = (memory.renderTargets / (1024 * 1024)).toFixed(2);
+        const mbTextures = (memory.textures / (1024 * 1024)).toFixed(2);
+        const mbTotal = (memory.total / (1024 * 1024)).toFixed(2);
+
+        this.stats.approxMemory = mbTotal + ' MB';
+        this.stats.memoryVertices = mbVertices + ' MB';
+        this.stats.memoryRenderTargets = mbRenderTargets + ' MB';
+        this.stats.memoryTextures = mbTextures + ' MB';
 
         if (this.showPassDetails) {
             // Update individual folder labels if they are open

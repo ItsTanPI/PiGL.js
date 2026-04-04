@@ -1,67 +1,67 @@
 import { RenderPass } from './RenderPass.js';
+import { Shader } from '../Rendering/Shader.js';
 
-/**
- * Object Render Pass
- * 
- * Renders 3D scene objects to a render target or the screen. This is typically the
- * first pass in a render pipeline, responsible for drawing all visible geometry.
- * Supports material overrides for special passes (depth, normal, shadow mapping).
- * 
- * @class ObjectRenderPass
- * @extends RenderPass
- * @description
- * Features:
- * - Render to framebuffer or screen
- * - Optional material override (e.g., for depth-only passes)
- * - Per-object material selection for specialized passes
- * - Automatic clear color configuration
- * - Performance metrics (draw call count)
- */
+import clearVs from '../shaders/clearquad.vert?raw';
+import clearFs from '../shaders/clearquad.frag?raw';
+
 export class ObjectRenderPass extends RenderPass {
-    /**
-     * Creates a new object render pass.
-     * @param {WebGLRenderingContext} gl - The WebGL context
-     * @param {number} width - Viewport width in pixels
-     * @param {number} height - Viewport height in pixels
-     * @param {RenderTarget} [renderTarget=null] - Optional target to render to (null = screen)
-     * @param {Material} [materialOverride=null] - Optional material to override object materials
-     * @param {string} [name='ObjectPass'] - Descriptive name for this pass
-     */
     constructor(gl, width, height, renderTarget = null, renderMode = 0, name = 'ObjectPass') {
         super(gl, width, height, name);
-        /** @type {RenderTarget} Target to render to, or null for screen */
         this.renderTarget = renderTarget;
-        /** @type {Material} Optional material override for all objects */
         this.renderMode = renderMode;
-        /** @type {number[]} RGBA clear color [r, g, b, a] */
         this.clearColor = [0.0, 0.0, 0.0, 1.0];
-        /** @type {boolean} Whether to clear the depth buffer */
         this.clearDepth = true;
-        /** @type {Camera} Optional camera override for rendering */
         this.camera = null;
+
+        // Build clear quad
+        this._clearShader = new Shader(gl, clearVs, clearFs);
+
+        const verts = new Float32Array([
+            -1, -1,
+             1, -1,
+            -1,  1,
+            -1,  1,
+             1, -1,
+             1,  1,
+        ]);
+        this._clearVbo = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, this._clearVbo);
+        gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
     }
 
-    /**
-     * Resize the pass and its render target.
-     * @param {number} width - New width in pixels
-     * @param {number} height - New height in pixels
-     */
+    _drawClearQuad() {
+        const gl = this.gl;
+
+        gl.depthFunc(gl.ALWAYS);
+        gl.depthMask(true);
+        gl.disable(gl.CULL_FACE);
+
+        this._clearShader.use();
+        this._clearShader.setUniform('uClearColor', this.clearColor);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this._clearVbo);
+        const aPos = this._clearShader.getAttribLocation('aVertexPosition');
+        if (aPos !== -1) {
+            gl.enableVertexAttribArray(aPos);
+            gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+        }
+
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+        // Restore
+        gl.depthFunc(gl.LEQUAL);
+        gl.enable(gl.CULL_FACE);
+    }
+    
     resize(width, height) {
         if (!this.autoResize) return;
         super.resize(width, height);
-        if (this.renderTarget) {
-            this.renderTarget.resize(width, height);
-        }
+        if (this.renderTarget) this.renderTarget.resize(width, height);
     }
 
-    /**
-     * Execute the object render pass.
-     * Renders all scene objects using their materials, or using the material override.
-     * Supports per-object material selection for depth/normal/shadow passes.
-     * @param {Renderer} renderer - The renderer instance
-     * @param {Array|Object} scene - Scene objects or array of GameObjects
-     * @param {Camera} camera - Camera for rendering
-     */
     execute(renderer, scene, camera) {
         const renderCamera = this.camera || camera;
         if (this.camera) renderCamera.updateView();
@@ -70,7 +70,13 @@ export class ObjectRenderPass extends RenderPass {
         renderer.resetDrawCalls();
 
         if (this.renderTarget) {
-            this.renderTarget.bind();
+            // Invalidate before bind — no tile load from RAM
+            const gl = this.gl;
+            gl.bindFramebuffer(gl.FRAMEBUFFER, this.renderTarget.framebuffer);
+            const attachments = [gl.COLOR_ATTACHMENT0];
+            if (this.clearDepth) attachments.push(gl.DEPTH_ATTACHMENT);
+            gl.invalidateFramebuffer(gl.FRAMEBUFFER, attachments);
+            gl.viewport(0, 0, this.renderTarget.width, this.renderTarget.height);
         } else {
             this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
             this.gl.viewport(0, 0, this.width, this.height);
@@ -86,16 +92,21 @@ export class ObjectRenderPass extends RenderPass {
         // Render scene objects
         if (scene && Array.isArray(scene)) {
             for (const obj of scene) {
-                    obj.material.setUniform('uRenderMode', this.renderMode, '1i');
-                    obj.render(renderCamera, this.renderTarget);
-                
+                obj.material.setUniform('uRenderMode', this.renderMode, '1i');
+                obj.render(renderCamera, this.renderTarget);
             }
         } else if (scene && scene.render) {
-             // Maybe scene is an object?
-             scene.render(renderCamera, this.renderTarget);
+            scene.render(renderCamera, this.renderTarget);
         }
 
         if (this.renderTarget) {
+            // Discard depth after — never needed next frame
+            if (this.clearDepth) {
+                this.gl.invalidateFramebuffer(
+                    this.gl.FRAMEBUFFER,
+                    [this.gl.DEPTH_ATTACHMENT]
+                );
+            }
             this.renderTarget.unbind();
         }
 

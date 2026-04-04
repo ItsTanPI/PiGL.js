@@ -9,8 +9,11 @@ export class Profiler {
     /**
      * Creates a new Profiler instance.
      * @constructor
+     * @param {Object} [gameContext] - Optional game context for memory tracking
      */
-    constructor() {
+    constructor(gameContext = null) {
+        /** @type {Object|null} Game context for accessing render queue and textures */
+        this.gameContext = gameContext;
         /** @type {boolean} Is profiling currently enabled? */
         this.enabled = false;
         /** @type {boolean} Are DevTools markers enabled? */
@@ -22,6 +25,12 @@ export class Profiler {
             frameTime: 0,
             cpuTime: 0,
             passes: [],
+            memory: {
+                vertices: 0,
+                renderTargets: 0,
+                textures: 0,
+                total: 0
+            }
         };
         /** @type {number} Timestamp of last frame start (for FPS calculation). */
         this.lastFrameStart = 0;
@@ -176,11 +185,91 @@ export class Profiler {
             this.history.shift();
         }
     }
+
+    /**
+     * Calculate total GPU memory usage from game assets.
+     * @returns {Object} Memory breakdown { vertices, renderTargets, textures, total }
+     */
+    updateMemoryMetrics() {
+        let vertexMemory = 0;
+        let renderTargetMemory = 0;
+        let textureMemory = 0;
+
+        // Vertex mesh memory from draw calls
+        if (this.metrics && this.metrics.passes) {
+            this.metrics.passes.forEach(pass => {
+                pass.drawCalls.forEach(dc => {
+                    vertexMemory += (dc.vertices || 0) * 32; // 32 bytes per vertex
+                });
+            });
+        }
+
+        // RenderTarget memory
+        if (this.gameContext && this.gameContext.renderQueue && this.gameContext.renderQueue.passes) {
+            this.gameContext.renderQueue.passes.forEach(pass => {
+                if (pass.renderTarget && pass.renderTarget.getMemorySize) {
+                    const rtMem = pass.renderTarget.getMemorySize();
+                    renderTargetMemory += rtMem;
+                }
+            });
+        }
+
+        // Texture memory - check multiple possible texture storage locations
+        if (this.gameContext) {
+            // Try game.textures
+            if (this.gameContext.textures) {
+                for (const key in this.gameContext.textures) {
+                    const texture = this.gameContext.textures[key];
+                    if (texture && texture.getMemorySize) {
+                        const texMem = texture.getMemorySize();
+                        if (texMem > 0) {
+                            textureMemory += texMem;
+                        }
+                    }
+                }
+            }
+            // Try game.textureCache
+            if (this.gameContext.textureCache) {
+                for (const key in this.gameContext.textureCache) {
+                    const texture = this.gameContext.textureCache[key];
+                    if (texture && texture.getMemorySize) {
+                        const texMem = texture.getMemorySize();
+                        if (texMem > 0) {
+                            textureMemory += texMem;
+                        }
+                    }
+                }
+            }
+            // Also try game.assets.textures
+            if (this.gameContext.assets && this.gameContext.assets.textures) {
+                for (const key in this.gameContext.assets.textures) {
+                    const texture = this.gameContext.assets.textures[key];
+                    if (texture && texture.getMemorySize) {
+                        const texMem = texture.getMemorySize();
+                        if (texMem > 0) {
+                            textureMemory += texMem;
+                        }
+                    }
+                }
+            }
+        }
+
+        const totalMemory = vertexMemory + renderTargetMemory + textureMemory;
+
+        this.metrics.memory = {
+            vertices: vertexMemory,
+            renderTargets: renderTargetMemory,
+            textures: textureMemory,
+            total: totalMemory
+        };
+
+        return this.metrics.memory;
+    }
 }
 
 export class ProfilerInstrumenter {
-    static attach(renderQueue, renderer) {
-        const profiler = new Profiler();
+    static attach(renderQueue, renderer, gameContext = null) {
+        const profiler = new Profiler(gameContext);
         
         // 1. Queue Instrumentation
         const originalExecute = renderQueue.execute.bind(renderQueue);
@@ -223,7 +312,10 @@ export class ProfilerInstrumenter {
             
             originalExecute(rendererCtx, scene, camera);
             
-            if (profiler.enabled) profiler.endFrame();
+            if (profiler.enabled) {
+                profiler.endFrame();
+                profiler.updateMemoryMetrics();
+            }
         };
 
         // 2. Renderer Draw Instrumentation

@@ -124,9 +124,7 @@ export class RenderTarget {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrapT);
 
         gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);
-        // ───────────────────────────────────────────────────────────────────
 
-        // ── Depth attachment (optional) ─────────────────────────────────────
         /** @type {WebGLRenderbuffer|null} */
         this.depthBuffer = null;
 
@@ -136,7 +134,6 @@ export class RenderTarget {
             gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, width, height);
             gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, this.depthBuffer);
         }
-        // ───────────────────────────────────────────────────────────────────
 
         const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
         if (status !== gl.FRAMEBUFFER_COMPLETE) {
@@ -197,6 +194,19 @@ export class RenderTarget {
         gl.bindRenderbuffer(gl.RENDERBUFFER, null);
     }
 
+    // Add this method to the RenderTarget class
+    invalidate(includeDepth = true) {
+        const gl = this.gl;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
+        
+        const attachments = [gl.COLOR_ATTACHMENT0];
+        if (includeDepth && this.hasDepth) {
+            attachments.push(gl.DEPTH_ATTACHMENT);
+        }
+        gl.invalidateFramebuffer(gl.FRAMEBUFFER, attachments);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+
     /**
      * Destroy this render target and free all GPU resources.
      */
@@ -209,5 +219,26 @@ export class RenderTarget {
         this.framebuffer = null;
         this.texture     = null;
         this.depthBuffer = null;
+    }
+
+    /**
+     * Calculate the approximate GPU memory used by this render target.
+     * Includes color texture and depth buffer if present.
+     * @returns {number} Memory in bytes
+     */
+    getMemorySize() {
+        let bytes = 0;
+
+        // Color texture memory
+        const channelCount = this.format === 'RGBA' ? 4 : this.format === 'RGB' ? 3 : this.format === 'RG' ? 2 : 1;
+        const bytesPerChannel = this.precision === '32f' ? 4 : this.precision === '16f' ? 2 : 1;
+        bytes += this.width * this.height * channelCount * bytesPerChannel;
+
+        // Depth buffer (typically 16-bit or 24-bit per pixel)
+        if (this.hasDepth) {
+            bytes += this.width * this.height * 2; // 16-bit depth
+        }
+
+        return bytes;
     }
 }

@@ -39,27 +39,15 @@ const canvas = document.getElementById('glcanvas');
 const gl = canvas.getContext('webgl2') || canvas.getContext('experimental-webgl');
 if (!gl) { alert('Unable to initialize WebGL.'); }
 
-gl.disable(gl.BLEND);
-gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+// gl.disable(gl.BLEND);
+// gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 gl.enable(gl.DEPTH_TEST);
 gl.depthFunc(gl.LEQUAL);
 gl.enable(gl.CULL_FACE);
 gl.cullFace(gl.BACK);
 gl.frontFace(gl.CCW);
 
-gl.getExtension('OES_texture_float');
-gl.getExtension('OES_texture_half_float');
-gl.getExtension('OES_texture_float_linear');
-gl.getExtension('OES_texture_half_float_linear');
-gl.getExtension('WEBGL_color_buffer_float')
-
-// let sceneBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
-// let depthBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST } );
-// let roughnessBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST } );
-// let normalBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
-// let pixelArtBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
-// let lightingBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, { minFilter: gl.NEAREST, magFilter: gl.NEAREST });
-// let shadowBuffer = new RenderTarget(gl, 1024, 1024);
+gl.getExtension('EXT_color_buffer_float');
 
 // Albedo — 8bit RGBA is enough, no need for float
 let sceneBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, {
@@ -67,28 +55,14 @@ let sceneBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, {
     minFilter: gl.NEAREST, magFilter: gl.NEAREST
 });
 
-// // Depth — single channel, needs 32f for precision
-let depthBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, {
-    format: 'R', precision: '8',
-    depth: true, // you're storing depth manually in color, no need for depth renderbuffer
-    minFilter: gl.NEAREST, magFilter: gl.NEAREST
-});
-
-// // Roughness — single channel, 8bit is fine (0-1 value)
-let roughnessBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, {
-    format: 'R', precision: '8',
+// Depth — single channel, needs 32f for precision
+let Gbuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, {
+    format: 'RGBA', precision: '8',
     depth: true,
     minFilter: gl.NEAREST, magFilter: gl.NEAREST
 });
 
-// // Normals — RG encoded or RGB, 16f to avoid banding
-let normalBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, {
-    format: 'RGB', precision: '8', // RGBA so you can pack roughness here later
-    depth: true,
-    minFilter: gl.NEAREST, magFilter: gl.NEAREST
-});
-
-// // Pixel art pass — 8bit RGBA, plain color output
+// Pixel art pass — 8bit RGBA, plain color output
 let pixelArtBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, {
     format: 'RGB', precision: '8',
     depth: false,
@@ -101,12 +75,9 @@ let lightingBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight,
     minFilter: gl.NEAREST, magFilter: gl.NEAREST
 });
 
-let shadowBuffer = new RenderTarget(gl, 1024, 1024, {
-    format: 'R', precision: '8',
-    depth: true // needs depth for shadow depth testing
-});
 
-const shaderMain = new Shader(gl, [masterVs], masterFs);
+
+const shaderMain = new Shader(gl, masterVs, masterFs);
 const shaderScreen = new Shader(gl, screenVs, screenFs);
 const shaderDisplacemet = new Shader(gl, [waterVs, masterVs], [waterFs, masterFs]);
 const shaderLighting = new Shader(gl, lightingVs, lightingFs);
@@ -144,10 +115,7 @@ matLighting.setUniforms({
     'uLightColor': [1.0, 0.8, 0.75],//'uLightColor': [0.9, 0.9, 0.9],
     'uAmbient': 0.5,
     'uSpecularStrength': 0.3,
-    'uShininess': 0.03,
-    'uVolumetricSteps': 20,
-    'uVolumetricIntensity': 0.1,
-    'uVolumetricScattering': 0.5
+    'uShininess': 0.03
 });
 
 matSkybox.setUniforms({
@@ -203,48 +171,32 @@ const lightCamera = new Camera(); // Camera for shadow casting
 const scene = [];
 const renderQueue = new RenderQueue(gl);
 
-// 0. Shadow Pass
-const shadowPass = new ObjectRenderPass(gl, shadowBuffer.width, shadowBuffer.height, shadowBuffer, 4, 'Shadow Pass');
-shadowPass.clearColor = [1.0, 1.0, 1.0, 1.0];
-shadowPass.autoResize = false; 
-renderQueue.addPass(shadowPass);
-
 
 // 1. Depth Pass
-const depthPass = new ObjectRenderPass(gl, canvas.width, canvas.height, depthBuffer, 3, 'Depth Pass');
-depthPass.clearColor = [1.0, 1.0, 1.0, 1.0];
-renderQueue.addPass(depthPass);
+const GbufferPass = new ObjectRenderPass(gl, canvas.width, canvas.height, Gbuffer, 1, 'GBuffer Pass');
+GbufferPass.clearColor = [0.5, 0.5, 1.0, 1.0];
+GbufferPass.clearDepth = true;
+renderQueue.addPass(GbufferPass);
 
-// 2. Normal Pass
-const normalPass = new ObjectRenderPass(gl, canvas.width, canvas.height, normalBuffer, 2, 'Normal Pass');
-normalPass.clearColor = [0.5, 0.5, 1.0, 1.0];
-renderQueue.addPass(normalPass);
-
-// 3. Albedo Pass 
+// 4. Albedo Pass 
 const scenePass = new ObjectRenderPass(gl, canvas.width, canvas.height, sceneBuffer, 0, 'Albedo Pass');
 scenePass.clearColor = [0.0, 0.0, 0.0, 1.0];
+scenePass.clearDepth = true;
 renderQueue.addPass(scenePass);
-
-// 4. roughness pass
-const roughnessPass = new ObjectRenderPass(gl, canvas.width, canvas.height, roughnessBuffer, 1, 'Roughness Pass');
-roughnessPass.clearColor = [0.0, 0.0, 0.0, 1.0];
-renderQueue.addPass(roughnessPass);
-// gl.finish();
 
 // 4. Lighting Pass
 const lightingPass = new LightingPass(gl, canvas.width, canvas.height, matLighting, lightingBuffer, 'Lighting Pass');
-lightingPass.setInputBuffers(sceneBuffer.texture, normalBuffer.texture, depthBuffer.texture, shadowBuffer.texture, roughnessBuffer.texture);
+lightingPass.setInputBuffers(sceneBuffer.texture, Gbuffer.texture);
 renderQueue.addPass(lightingPass);
 
 // 5. Skybox Pass (Draws on top of lighting where depth is far)
 const skyboxPass = new SkyboxPass(gl, canvas.width, canvas.height, matSkybox, lightingBuffer, 'Skybox Pass');
-skyboxPass.setInputTexture(depthBuffer.texture);
+skyboxPass.setInputTexture(Gbuffer.texture);
 renderQueue.addPass(skyboxPass);
-
 
 // 6. Pixel Art Pass
 const pixelArtPass = new PixelArtPass(gl, canvas.width, canvas.height, matPixelArt, pixelArtBuffer, 'PixelArt Pass');
-pixelArtPass.setInputBuffers(lightingBuffer.texture, depthBuffer.texture, normalBuffer.texture);
+pixelArtPass.setInputBuffers(lightingBuffer.texture, Gbuffer.texture);
 renderQueue.addPass(pixelArtPass);
 
 // 7. Viewport Pass
@@ -253,12 +205,8 @@ viewportPass.setBuffer('Final', pixelArtBuffer.texture);
 viewportPass.setBuffer('Pixel', pixelArtBuffer.texture);
 viewportPass.setBuffer('Lit', lightingBuffer.texture);
 viewportPass.setBuffer('Albedo', sceneBuffer.texture);
-viewportPass.setBuffer('Roughness', roughnessBuffer.texture);
-viewportPass.setBuffer('Normal', normalBuffer.texture);
-viewportPass.setBuffer('Depth', depthBuffer.texture);
-viewportPass.setBuffer('Shadow', shadowBuffer.texture);
-// Assign critical camera overrides for pipeline automatization
-shadowPass.camera = lightCamera;
+viewportPass.setBuffer('Normal', Gbuffer.texture);
+
 lightingPass.lightCamera = lightCamera;
 renderQueue.addPass(viewportPass);
 
@@ -270,8 +218,7 @@ function resizeCanvas() {
     
     // Resize buffers
     sceneBuffer.resize(canvas.width, canvas.height);
-    depthBuffer.resize(canvas.width, canvas.height);
-    normalBuffer.resize(canvas.width, canvas.height);
+    Gbuffer.resize(canvas.width, canvas.height);
     lightingBuffer.resize(canvas.width, canvas.height);
     pixelArtBuffer.resize(canvas.width, canvas.height);
     // shadowBuffer is fixed size for now or could be dynamic
@@ -305,27 +252,31 @@ ObjLoader.load(gl, './Assets/3D/DetailedPlane.obj').then(mesh => {
     const yPos = -6.5;
     const scale = 50;
 
-
-    // {
-    //     var obj = new GameObject(renderer, matWater, mesh, `Water Floor `);
+    if(isMobile)
+    {
+        var obj = new GameObject(renderer, matWater, mesh, `Water Floor `);
             
-    //     obj.transform.position.set(0 * offset, yPos, 0 * offset);
-            
-    //         obj.transform.scale.set(scale, scale, scale);
-            
-    //         scene.push(obj);
-    // }
-
-    for (let x = (isMobile? 0 : -2); x <= (isMobile? 0 : 2); x++) {
-        for (let z = (isMobile? 0 : -1); z <= (isMobile? 2 : 3); z++) {
-            
-            var obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}]`);
-            
-            obj.transform.position.set(x * offset, yPos, z * offset);
+        obj.transform.position.set(0 * offset, yPos, 0 * offset);
             
             obj.transform.scale.set(scale, scale, scale);
             
             scene.push(obj);
+    }
+    else
+    {
+        
+        for (let x = -2; x <= 2; x++) 
+        {
+            for (let z =  -1; z <= 3; z++) {
+        
+                var obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}]`);
+        
+                obj.transform.position.set(x * offset, yPos, z * offset);
+        
+                obj.transform.scale.set(scale, scale, scale);
+        
+                scene.push(obj);
+            }
         }
     }
 });
@@ -345,25 +296,30 @@ const game = {
     lightCamera,
     renderer,
     renderQueue,
-    materials, 
-    viewportPass
+    materials,
+    viewportPass,
+    textures: {
+        ship: shipTexture
+    }
 };
 
 game.setViewports = (mode) => {
     viewports[0].pass = mode; 
 };
 
-
+let profiler = null;
 
 if (!isMobile) {
     const editor = new Editor(game);
+    profiler = ProfilerInstrumenter.attach(renderQueue, renderer, game);
+    profiler.enable();
+    profiler.devToolsEnabled = true;
+    game.profiler = profiler;
 }
 
 const cameraController = new CameraController(camera, canvas);
 
-const profiler = ProfilerInstrumenter.attach(renderQueue, renderer);
-profiler.enable();
-game.profiler = profiler;
+
 
 const size = 30.0;
 lightCamera.setOrthographic(-size, size, -size, size, 1.0, 100.0);
@@ -395,7 +351,6 @@ function loop(now)
     camera.updateView();
 
     viewportPass.setViewports(viewports);
-    shadowPass.camera = lightCamera;
 
     camera.updateProjection();
     lightCamera.updateProjection();

@@ -41,12 +41,9 @@ export class LightingPass extends ScreenRenderPass {
      * @param {WebGLTexture} roufTex - Pre-pixel Roughness value
      * 
      */
-    setInputBuffers(sceneTex, normalTex, depthTex, shadowTex, roufTex) {
+    setInputBuffers(sceneTex, Gbuffer) {
         this.setTexture('uSceneTexture', sceneTex);
-        this.setTexture('uNormalTexture', normalTex);
-        this.setTexture('uDepthTexture', depthTex);
-        this.setTexture('uRoughnessTexture', roufTex);
-        this.setTexture('uShadowMap', shadowTex);
+        this.setTexture('uNormalTexture', Gbuffer);
 
     }
     

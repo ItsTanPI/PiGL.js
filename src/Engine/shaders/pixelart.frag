@@ -3,8 +3,7 @@ precision highp float;
 varying vec2 vTexCoord;
 
 uniform sampler2D uSceneTexture;
-uniform sampler2D uNormalTexture;
-uniform sampler2D uDepthTexture;
+uniform sampler2D uGbufferTexture;
 
 uniform float uPixelSize;
 uniform float uColorLevels;
@@ -26,8 +25,8 @@ void main() {
     vec2 texelSize = 1.0 / size;
 
     // 2. SAMPLING
-    float depthCenter = texture2D(uDepthTexture, uv).r;
-    vec3 normalCenter = texture2D(uNormalTexture, uv).rgb * 2.0 - 1.0;
+    float depthCenter = texture2D(uGbufferTexture, uv).a;
+    vec3 normalCenter = texture2D(uGbufferTexture, uv).rgb * 2.0 - 1.0;
     vec4 sceneColor = texture2D(uSceneTexture, uv);
 
     vec3 quantizedColor = floor(sceneColor.rgb * uColorLevels) / uColorLevels;
@@ -46,11 +45,11 @@ void main() {
     for(int i = 0; i < 4; i++) {
         vec2 neighborUV = uv + offsets[i] * texelSize;
         
-        float depthNeighbor = texture2D(uDepthTexture, neighborUV).r;
+        float depthNeighbor = texture2D(uGbufferTexture, neighborUV).a;
         // Sensitivity usually needs to decrease as width increases
         depthEdge = max(depthEdge, abs(depthCenter - depthNeighbor));
 
-        vec3 normalNeighbor = texture2D(uNormalTexture, neighborUV).rgb * 2.0 - 1.0;
+        vec3 normalNeighbor = texture2D(uGbufferTexture, neighborUV).rgb * 2.0 - 1.0;
         normalEdge = max(normalEdge, (1.0 - dot(normalCenter, normalNeighbor)));
     }
 
