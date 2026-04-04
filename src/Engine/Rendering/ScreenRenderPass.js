@@ -39,6 +39,8 @@ export class ScreenRenderPass extends RenderPass {
         this.inputs = {};
         /** @type {number[]|null} Optional RGBA clear color, or null to skip clearing */
         this.clearColor = null;
+        /** @type {Float32Array} Reusable resolution uniform buffer */
+        this._resolutionBuffer = new Float32Array([width, height]);
     }
 
     /**
@@ -57,6 +59,9 @@ export class ScreenRenderPass extends RenderPass {
      */
     resize(width, height) {
         super.resize(width, height);
+        // Update cached resolution uniform
+        this._resolutionBuffer[0] = width;
+        this._resolutionBuffer[1] = height;
         if (this.renderTarget) {
             this.renderTarget.resize(width, height);
         }
@@ -95,7 +100,7 @@ export class ScreenRenderPass extends RenderPass {
         }
 
         // We might also want to set resolution uniforms if the shader expects it
-        this.material.setUniform('uResolution', [this.width, this.height]);
+        this.material.setUniform('uResolution', this._resolutionBuffer);
 
         this.fullScreenQuad.draw(this.material, this.renderTarget);
 

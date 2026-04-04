@@ -25,6 +25,18 @@ export class Matrix {
     }
 
     /**
+     * Copy one matrix to another (fast memory copy).
+     * @static
+     * @param {Float32Array} out - Output matrix (will be modified)
+     * @param {Float32Array} a - Source matrix to copy
+     * @returns {Float32Array} The copied matrix
+     */
+    static copy(out, a) {
+        out.set(a);
+        return out;
+    }
+
+    /**
      * Multiply two 4x4 matrices: out = a × b
      * Computes the product of two matrices and stores the result in out.
      * @static
@@ -111,6 +123,20 @@ export class Matrix {
     static invert(out, a) {
         return mat4.invert(out, a);
     }
+
+    /**
+     * Compose a transformation matrix from position, rotation (Euler), and scale.
+     * More efficient than separate translate/rotate/scale calls.
+     * @static
+     * @param {Float32Array} out - Output matrix (will be modified)
+     * @param {Vector3|Array} pos - Position [x, y, z]
+     * @param {Vector3|Array} rot - Rotation in radians [x, y, z] - applied as YXZ order
+     * @param {Vector3|Array} scale - Scale [x, y, z]
+     * @returns {Float32Array} The composed matrix
+     */
+    static compose(out, pos, rot, scale) {
+        return mat4.compose(out, pos, rot, scale);
+    }
 }
 
 /**
@@ -191,6 +217,7 @@ export const mat4 = {
         return out;
     },
     rotateX(out, a, rad) {
+        // Cache sin/cos to avoid recalculation for each element
         let s = Math.sin(rad), c = Math.cos(rad);
         let a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7];
         let a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11];
@@ -203,6 +230,7 @@ export const mat4 = {
         return out;
     },
     rotateY(out, a, rad) {
+        // Cache sin/cos to avoid recalculation for each element
         let s = Math.sin(rad), c = Math.cos(rad);
         let a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3];
         let a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11];
@@ -215,6 +243,7 @@ export const mat4 = {
         return out;
     },
     rotateZ(out, a, rad) {
+        // Cache sin/cos to avoid recalculation for each element
         let s = Math.sin(rad), c = Math.cos(rad);
         let a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3];
         let a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7];
@@ -267,6 +296,57 @@ export const mat4 = {
         out[14] = (a31 * b01 - a30 * b03 - a32 * b00) * det;
         out[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
 
+        return out;
+    },
+    compose(out, pos, rot, scale) {
+        // Efficiently compose TRS (translate, rotate, scale) in one pass
+        // Position
+        let px = pos.x !== undefined ? pos.x : pos[0];
+        let py = pos.y !== undefined ? pos.y : pos[1];
+        let pz = pos.z !== undefined ? pos.z : pos[2];
+        
+        // Rotation (YXZ order)
+        let rx = rot.x !== undefined ? rot.x : rot[0];
+        let ry = rot.y !== undefined ? rot.y : rot[1];
+        let rz = rot.z !== undefined ? rot.z : rot[2];
+        
+        // Scale
+        let sx = scale.x !== undefined ? scale.x : scale[0];
+        let sy = scale.y !== undefined ? scale.y : scale[1];
+        let sz = scale.z !== undefined ? scale.z : scale[2];
+        
+        // Cache sin/cos for all rotations (only compute once)
+        let cy = Math.cos(ry), sy_sin = Math.sin(ry);
+        let cx = Math.cos(rx), sx_sin = Math.sin(rx);
+        let cz = Math.cos(rz), sz_sin = Math.sin(rz);
+        
+        // Build rotation matrix (YXZ order: RotZ * RotX * RotY)
+        // Then apply scale to each column
+        
+        // Column 0 (X axis)
+        out[0] = (cy * cz - sy_sin * sx_sin * sz_sin) * sx;
+        out[1] = (cy * sz_sin + sy_sin * sx_sin * cz) * sx;
+        out[2] = (-sy_sin * cx) * sx;
+        out[3] = 0;
+        
+        // Column 1 (Y axis)
+        out[4] = (-cx * sz_sin) * sy;
+        out[5] = (cx * cz) * sy;
+        out[6] = (sx_sin) * sy;
+        out[7] = 0;
+        
+        // Column 2 (Z axis)
+        out[8] = (sy_sin * cz + cy * sx_sin * sz_sin) * sz;
+        out[9] = (sy_sin * sz_sin - cy * sx_sin * cz) * sz;
+        out[10] = (cy * cx) * sz;
+        out[11] = 0;
+        
+        // Column 3 (Translation)
+        out[12] = px;
+        out[13] = py;
+        out[14] = pz;
+        out[15] = 1;
+        
         return out;
     }
 };

@@ -95,7 +95,8 @@ export class Profiler {
         }
         this.lastFrameStart = now;
         this.metrics.startTime = now;
-        this.metrics.passes = [];
+        // Reuse array instead of creating new one each frame
+        this.metrics.passes.length = 0;
     }
 
     /**

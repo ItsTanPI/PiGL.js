@@ -6,21 +6,20 @@ export class SkyboxPass extends ScreenRenderPass {
         super(gl, width, height, material, target, name);
         this.clearColor = null; // Do not clear previous passes!
         this.clearDepth = false; // Do not clear depth
+        
+        // Pre-allocate matrix buffers to avoid per-frame allocations
+        this._camViewProj = new Float32Array(16);
+        this._invCamViewProj = new Float32Array(16);
     }
 
     setCamera(camera) {
-        // Need inverse view projection
-        // Recompute here or reuse from main? Let's recompute for safety.
-        const camViewProj = new Float32Array(16);
-        Matrix.multiply(camViewProj, camera.projectionMatrix, camera.viewMatrix);
-        
-        const invCamViewProj = new Float32Array(16);
-        Matrix.invert(invCamViewProj, camViewProj);
+        // Reuse pre-allocated buffers instead of creating new ones
+        Matrix.multiply(this._camViewProj, camera.projectionMatrix, camera.viewMatrix);
+        Matrix.invert(this._invCamViewProj, this._camViewProj);
 
         this.material.setUniforms({
-            'uInverseViewProjection': invCamViewProj,
+            'uInverseViewProjection': this._invCamViewProj,
             'uCameraPos': [camera.transform.position.x, camera.transform.position.y, camera.transform.position.z]
-            // We pass pos as array or vec3
         });
     }
 

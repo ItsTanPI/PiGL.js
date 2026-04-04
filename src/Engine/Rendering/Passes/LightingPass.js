@@ -30,6 +30,11 @@ export class LightingPass extends ScreenRenderPass {
         super(gl, width, height, material, target, name);
         /** @type {Camera} Optional light camera for shadow/lighting calculations */
         this.lightCamera = null;
+        
+        // Pre-allocate reusable matrix buffers to avoid per-frame allocations
+        this._lightSpace = new Float32Array(16);
+        this._camViewProj = new Float32Array(16);
+        this._invCamViewProj = new Float32Array(16);
     }
     
     /**
@@ -63,21 +68,17 @@ export class LightingPass extends ScreenRenderPass {
     }
 
     setMatricesFromCameras(camera, lightCamera) {
-        // Compute uLightSpaceMatrix (Light Proj * Light View)
-        const lightSpace = new Float32Array(16);
-        Matrix.multiply(lightSpace, lightCamera.projectionMatrix, lightCamera.viewMatrix);
+        // Compute uLightSpaceMatrix (Light Proj * Light View) - reuse allocated buffer
+        Matrix.multiply(this._lightSpace, lightCamera.projectionMatrix, lightCamera.viewMatrix);
 
-        // Compute uInverseViewProjection (Inverse(CamProj * CamView))
-        const camViewProj = new Float32Array(16);
-        Matrix.multiply(camViewProj, camera.projectionMatrix, camera.viewMatrix);
-        
-        const invCamViewProj = new Float32Array(16);
-        Matrix.invert(invCamViewProj, camViewProj);
+        // Compute uInverseViewProjection (Inverse(CamProj * CamView)) - reuse allocated buffers
+        Matrix.multiply(this._camViewProj, camera.projectionMatrix, camera.viewMatrix);
+        Matrix.invert(this._invCamViewProj, this._camViewProj);
 
         const camPos = camera.transform.position;
         this.material.setUniforms({
-            'uLightSpaceMatrix': lightSpace,
-            'uInverseViewProjection': invCamViewProj,
+            'uLightSpaceMatrix': this._lightSpace,
+            'uInverseViewProjection': this._invCamViewProj,
             'uCameraPos': [camPos.x, camPos.y, camPos.z]
         });
     }

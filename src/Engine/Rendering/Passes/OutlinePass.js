@@ -29,6 +29,9 @@ export class OutlinePass extends ScreenRenderPass {
         super(gl, width, height, material, target, name);
         /** @type {number[]} RGBA clear color - transparent by default for layering */
         this.clearColor = [0.0, 0.0, 0.0, 0.0];
+        
+        // Pre-allocate resolution buffer to avoid per-frame allocation
+        this._resolutionBuffer = new Float32Array([width, height]);
     }
 
     /**
@@ -43,6 +46,9 @@ export class OutlinePass extends ScreenRenderPass {
 
     resize(width, height) {
         super.resize(width, height);
-        this.material.setUniform('uResolution', [width, height]);
+        // Update cached resolution buffer instead of creating new array
+        this._resolutionBuffer[0] = width;
+        this._resolutionBuffer[1] = height;
+        this.material.setUniform('uResolution', this._resolutionBuffer);
     }
 }

@@ -309,7 +309,7 @@ game.setViewports = (mode) => {
 
 let profiler = null;
 
-if (!isMobile) {
+if (false) {
     const editor = new Editor(game);
     profiler = ProfilerInstrumenter.attach(renderQueue, renderer, game);
     profiler.enable();
@@ -319,10 +319,15 @@ if (!isMobile) {
 
 const cameraController = new CameraController(camera, canvas);
 
-
+// Pre-allocate light direction array for per-frame loop
+const lightDir = [0.5, 0.8, 0.2];
 
 const size = 30.0;
 lightCamera.setOrthographic(-size, size, -size, size, 1.0, 100.0);
+
+// HUD update state: throttle updates to reduce string allocations
+let hudUpdateCounter = 0;
+let lastHudContent = '';
 
 function loop(now) 
 {    
@@ -335,16 +340,17 @@ function loop(now)
         'uTime': Time.time,
     });
     matSkybox.setUniforms({ 'uTime': Time.time });
-
-
-    let lightDir = [0.5, 0.8, 0.2];
     if (matLighting.uniforms['uLightDir'] && matLighting.uniforms['uLightDir'].value) {
         const v = matLighting.uniforms['uLightDir'].value;
         const len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
         if (len > 0.001) {
-            lightDir = [v[0]/len, v[1]/len, v[2]/len];
+            lightDir[0] = v[0]/len;
+            lightDir[1] = v[1]/len;
+            lightDir[2] = v[2]/len;
         } else {
-             lightDir = [v[0], v[1], v[2]];
+             lightDir[0] = v[0];
+             lightDir[1] = v[1];
+             lightDir[2] = v[2];
         }
     }
 
@@ -367,27 +373,34 @@ function loop(now)
     
     const hud = document.getElementById('hud');
     if (hud) {
-        // Current FPS: Pad to 3 digits (e.g., "060")
-        const fpsValue = Time.unscaledDeltaTime > 0 ? Math.round(1.0 / Time.unscaledDeltaTime) : 0;
-        const fps = fpsValue.toString().padStart(3, '0');
+        // Throttle HUD updates to every 6 frames to reduce string allocation pressure
+        hudUpdateCounter++;
+        if (hudUpdateCounter >= 6) {
+            hudUpdateCounter = 0;
+            
+            // Current FPS: Pad to 3 digits (e.g., "060")
+            const fpsValue = Time.unscaledDeltaTime > 0 ? Math.round(1.0 / Time.unscaledDeltaTime) : 0;
+            const fps = fpsValue.toString().padStart(3, '0');
 
-        let avgStr = "";
-        if (profiler && profiler.fpsHistory && profiler.fpsHistory.length > 0) {
-            let sumFps = 0;
-            let histLen = profiler.fpsHistory.length;
-            let countFps = Math.min(histLen, 60);
-            for (let i = histLen - countFps; i < histLen; i++) {
-                sumFps += profiler.fpsHistory[i];
+            let avgStr = "";
+            if (profiler && profiler.fpsHistory && profiler.fpsHistory.length > 0) {
+                let sumFps = 0;
+                let histLen = profiler.fpsHistory.length;
+                let countFps = Math.min(histLen, 60);
+                for (let i = histLen - countFps; i < histLen; i++) {
+                    sumFps += profiler.fpsHistory[i];
+                }
+                // Avg FPS: Pad to 3 digits
+                const avgVal = Math.round(sumFps / countFps).toString().padStart(3, '0');
+                avgStr = ` <br> Avg FPS: ${avgVal}`;
             }
-            // Avg FPS: Pad to 3 digits
-            const avgVal = Math.round(sumFps / countFps).toString().padStart(3, '0');
-            avgStr = ` <br> Avg FPS: ${avgVal}`;
+
+            // Delta Time: Pad to 3 whole digits and 2 decimals (e.g., "016.67")
+            const deltaMs = (Time.deltaTime * 1000).toFixed(2).padStart(6, '0');
+
+            lastHudContent = `FPS: ${fps}${avgStr}<br>Δ: ${deltaMs} ms`;
+            hud.innerHTML = lastHudContent;
         }
-
-        // Delta Time: Pad to 3 whole digits and 2 decimals (e.g., "016.67")
-        const deltaMs = (Time.deltaTime * 1000).toFixed(2).padStart(6, '0');
-
-        hud.innerHTML = `FPS: ${fps}${avgStr}<br>Δ: ${deltaMs} ms`;
     }
 
     requestAnimationFrame(loop);

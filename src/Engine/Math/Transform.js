@@ -33,6 +33,14 @@ export class Transform {
         this.parent = null;
         /** @type {Transform[]} Direct children. */
         this.children = [];
+        
+        /** @type {boolean} Dirty flag: true if local matrix needs recalculation. */
+        this._isDirty = true;
+        
+        // Wire up dirty flag callbacks on position, rotation, scale changes
+        this.position._onchange = () => this.markDirty();
+        this.rotation._onchange = () => this.markDirty();
+        this.scale._onchange = () => this.markDirty();
     }
 
     /**
@@ -58,13 +66,30 @@ export class Transform {
      * @method remove
      * @param {Transform} child - The child to detach.
      * @returns {void}
+     * 
+     * @description Uses swap-and-pop pattern for O(1) removal instead of splice's O(n).
      */
     remove(child) {
         const index = this.children.indexOf(child);
         if (index !== -1) {
             child.parent = null;
-            this.children.splice(index, 1);
+            // Swap with last element and pop for O(1) removal
+            const lastIdx = this.children.length - 1;
+            if (index !== lastIdx) {
+                this.children[index] = this.children[lastIdx];
+            }
+            this.children.pop();
         }
+    }
+
+    /**
+     * Marks this transform as dirty, requiring matrix recalculation.
+     * @method markDirty
+     * @returns {void}
+     * @private
+     */
+    markDirty() {
+        this._isDirty = true;
     }
 
     /**
@@ -74,9 +99,11 @@ export class Transform {
      * @returns {void}
      * 
      * @description Builds the local matrix as: Translate × RotateY × RotateX × RotateZ × Scale.
-     * Rotation order is YXZ (Euler).
+     * Rotation order is YXZ (Euler). Only recalculates if transform is dirty.
      */
     updateLocalMatrix() {
+        if (!this._isDirty) return;
+        
         Matrix.identity(this.localMatrix);
         Matrix.translate(this.localMatrix, this.localMatrix, this.position);
         
@@ -86,6 +113,7 @@ export class Transform {
         Matrix.rotateZ(this.localMatrix, this.localMatrix, this.rotation.z);
         
         Matrix.scale(this.localMatrix, this.localMatrix, this.scale);
+        this._isDirty = false;
     }
 
     /**
@@ -105,10 +133,8 @@ export class Transform {
         if (this.parent) {
             Matrix.multiply(this.worldMatrix, this.parent.worldMatrix, this.localMatrix);
         } else {
-            // Otherwise, our world matrix is just our local matrix
-            for(let i=0; i<16; i++) {
-                this.worldMatrix[i] = this.localMatrix[i];
-            }
+            // Otherwise, our world matrix is just our local matrix (fast copy using set)
+            this.worldMatrix.set(this.localMatrix);
         }
 
         // Recursively update all children so they combine with this new matrix

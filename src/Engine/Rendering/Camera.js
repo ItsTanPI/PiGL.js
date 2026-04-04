@@ -149,11 +149,13 @@ export class Camera extends GameObject {
      * 
      * @method getScreenPosition
      * @param {GameObject} gameObject - Object to project.
+     * @param {number[]} [out=null] - Optional output array to reuse [x, y]; if null, creates new array.
      * @returns {number[]} Array [screenX, screenY] in normalized device coords (0=left/bottom, 1=right/top).
      * 
      * @description Useful for UI positioning or culling checks. Returns [0.5, 0.5] on projection failure.
+     * Pass an output array to avoid allocation.
      */
-    getScreenPosition(gameObject) {
+    getScreenPosition(gameObject, out = null) {
         // Basic Transform logic to project 3D point to 2D Screen UV (0-1)
         
         // 1. Get View Matrix & Projection Matrix
@@ -178,11 +180,24 @@ export class Camera extends GameObject {
         const pw = p[3]*vx + p[7]*vy + p[11]*vz + p[15]*vw;
 
         // 5. NDC Space (-1 to 1)
-        if (pw === 0) return [0.5, 0.5]; // Avoid divide by zero
+        if (pw === 0) {
+            if (!out) out = [0.5, 0.5];
+            else { out[0] = 0.5; out[1] = 0.5; }
+            return out;
+        }
         const ndcX = px / pw;
         const ndcY = py / pw;
 
         // 6. Screen UV Space (0 to 1)
-        return [(ndcX + 1) * 0.5, (ndcY + 1) * 0.5];
+        const screenX = (ndcX + 1) * 0.5;
+        const screenY = (ndcY + 1) * 0.5;
+        
+        if (!out) {
+            out = [screenX, screenY];
+        } else {
+            out[0] = screenX;
+            out[1] = screenY;
+        }
+        return out;
     }
 }

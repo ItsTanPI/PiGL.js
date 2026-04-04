@@ -190,7 +190,8 @@ export class Renderer {
     resetDrawCalls() {
         const result = { count: this.drawCalls, details: this.drawCallDetails.slice() };
         this.drawCalls = 0;
-        this.drawCallDetails = [];
+        // Reuse array instead of creating new one - just clear contents
+        this.drawCallDetails.length = 0;
         return result;
     }
 }

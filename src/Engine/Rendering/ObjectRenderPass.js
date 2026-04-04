@@ -28,6 +28,10 @@ export class ObjectRenderPass extends RenderPass {
         gl.bindBuffer(gl.ARRAY_BUFFER, this._clearVbo);
         gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        
+        // Pre-allocate reusable attachment arrays to avoid per-frame allocation
+        this._attachmentsWithDepth = [gl.COLOR_ATTACHMENT0, gl.DEPTH_ATTACHMENT];
+        this._attachmentsDepthOnly = [gl.DEPTH_ATTACHMENT];
     }
 
     _drawClearQuad() {
@@ -73,8 +77,8 @@ export class ObjectRenderPass extends RenderPass {
             // Invalidate before bind — no tile load from RAM
             const gl = this.gl;
             gl.bindFramebuffer(gl.FRAMEBUFFER, this.renderTarget.framebuffer);
-            const attachments = [gl.COLOR_ATTACHMENT0];
-            if (this.clearDepth) attachments.push(gl.DEPTH_ATTACHMENT);
+            // Reuse pre-allocated attachment arrays instead of creating new ones
+            const attachments = this.clearDepth ? this._attachmentsWithDepth : [gl.COLOR_ATTACHMENT0];
             gl.invalidateFramebuffer(gl.FRAMEBUFFER, attachments);
             gl.viewport(0, 0, this.renderTarget.width, this.renderTarget.height);
         } else {
@@ -102,9 +106,10 @@ export class ObjectRenderPass extends RenderPass {
         if (this.renderTarget) {
             // Discard depth after — never needed next frame
             if (this.clearDepth) {
+                // Reuse pre-allocated depth-only attachment array
                 this.gl.invalidateFramebuffer(
                     this.gl.FRAMEBUFFER,
-                    [this.gl.DEPTH_ATTACHMENT]
+                    this._attachmentsDepthOnly
                 );
             }
             this.renderTarget.unbind();
