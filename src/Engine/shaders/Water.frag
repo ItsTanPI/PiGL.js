@@ -20,6 +20,10 @@ uniform vec3 uColor3;
 
 uniform float uColorBands; 
 
+uniform vec2 uColor1Smoothstep;
+uniform vec2 uColor2Smoothstep;
+
+
 // --- Helper Functions ---
 vec2 hash(vec2 p) {
     p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
@@ -130,10 +134,10 @@ void fragment(inout vec4 color, inout vec3 normal, inout float emission)
     float n = clamp(totalY / udisplacement, 0.0, 1.0);
     float quantizedN = floor(n * uColorBands) / uColorBands;
 
-    float blend1 = smoothstep(0.0, 0.5, quantizedN);
+    float blend1 = smoothstep(uColor1Smoothstep.x, uColor1Smoothstep.y, quantizedN);
     vec3 waterBase = mix(uColor1, uColor2, blend1);
 
-    float blend2 = smoothstep(0.0, 2.0, quantizedN); // Matches your vertex logic
+    float blend2 = smoothstep(uColor2Smoothstep.x, uColor2Smoothstep.y, quantizedN); // Matches your vertex logic
     vec3 finalColor = mix(waterBase, uColor3, blend2);
 
     emission = blend2; 
