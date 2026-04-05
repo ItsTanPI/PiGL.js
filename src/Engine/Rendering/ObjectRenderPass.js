@@ -86,11 +86,8 @@ export class ObjectRenderPass extends RenderPass {
             this.gl.viewport(0, 0, this.width, this.height);
         }
 
-        if (this.clearColor) {
-            this.gl.clearColor(this.clearColor[0], this.clearColor[1], this.clearColor[2], this.clearColor[3]);
-            let flags = this.gl.COLOR_BUFFER_BIT;
-            if (this.clearDepth) flags |= this.gl.DEPTH_BUFFER_BIT;
-            this.gl.clear(flags);
+        if (this.clearColor != null) {
+            this._drawClearQuad();
         }
 
         // Recursive render function for object hierarchies
