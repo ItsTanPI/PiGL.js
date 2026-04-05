@@ -23,11 +23,12 @@ export class SkyboxPass extends ScreenRenderPass {
         });
     }
 
-    setLight(direction, sunColor, topColor, bottomColor) {
+    setLight(direction, sunColor, topColor, midColor, bottomColor) {
         this.material.setUniforms({
             'uLightDir': direction,
             'uSunColor': sunColor,
             'uTopColor': topColor,
+            'uMidColor': midColor,
             'uBottomColor': bottomColor
         });
     }

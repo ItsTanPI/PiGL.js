@@ -41,7 +41,10 @@ export class FloatingObjectSpawner {
             
             // Platforms/Pallets (Y rotation only, high probability)
             { file: 'platform.obj', name: 'Platform', type: 'platform', rotationMode: 'y-only', scale: 1.0, yOffset: -0.2, probability: 0.20 },
-            { file: 'platform-planks.obj', name: 'Platform Planks', type: 'platform', rotationMode: 'y-only', scale: 1.0, yOffset: -0.15, probability: 0.18 },            
+            { file: 'platform-planks.obj', name: 'Platform Planks', type: 'platform', rotationMode: 'y-only', scale: 1.0, yOffset: -0.15, probability: 0.18 },   
+            { file: 'ship-large.obj', name: 'Ship Large', type: 'ship', rotationMode: 'y-only', scale: 1.0, yOffset: -1, probability: 0.07 },
+            { file: 'ship-medium.obj', name: 'Ship Large', type: 'ship', rotationMode: 'y-only', scale: 1.0, yOffset: -1, probability: 0.07 },
+            { file: 'ship-small.obj', name: 'Ship Large', type: 'ship', rotationMode: 'y-only', scale: 1.0, yOffset: -1, probability: 0.07 },         
         ];
         
         this.loadedMeshCount = 0;

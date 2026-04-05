@@ -137,16 +137,18 @@ matLighting.setUniforms({
 
 matSkybox.setUniforms({
     // 'uTopColor': 	[0.12, 0.45, 0.85],
+    // 'uMidColor':     [0.40, 0.70, 0.90],
     // 'uBottomColor': 	[0.70, 0.85, 0.95],
     // 'uSunColor': 	[1.00, 1.00, 1.00],
-    'uTopColor': [0.063, 0.188, 0.820],
-    'uBottomColor': 	[1.00, 0.51, 0.32],
-    'uSunColor': [1.00, 0.33, 0.10],
+    'uTopColor': [0.133, 0.137, 0.251],
+    'uMidColor': [0.749, 0.286, 0.369],
+    'uBottomColor': [0.996, 0.431, 0.243],
+    'uSunColor': [0.894, 0.514, 0.384],
     'uCloudScale': 5.4,
     'uCloudThreshold': 0.01,
     'uCloudDensity': 0.5,
-    'uCloudCoverage': 0.5,
-    'uCloudSpeed': 0.1,
+    'uCloudCoverage': 0.8,
+    'uCloudSpeed': 0.35,
     'uCloudMainColor': [1.0, 0.49, 0.37],
     'uCloudShadeColor': [0.9, 0.35, 0.25]
 });
@@ -158,19 +160,14 @@ const waterConfig = {
     'udisplacement': 1.5,
     'uScale': 1,     // Updated from image
     
-    // Buoyancy Settings
-    'uBuoyancyRotation': 0.3, // Controls how much the ship tilts (0-1, where 1 is maximum)
-    
-    // Hex to RGB conversion:
-    // #17457d -> [0.09, 0.27, 0.49]
-    // #31679f -> [0.19, 0.40, 0.62]
-    // #ccccff -> [0.80, 0.80, 1.00]
+    'uBuoyancyRotation': 0.3, // 
+
     'uColor1': [0.090, 0.271, 0.490], 
     'uColor2': [0.192, 0.404, 0.624],  
     'uColor3': [0.800, 0.800, 1.000],   
     
     'uColor1Smoothstep': [0, 0.5],   
-    'uColor2Smoothstep': [0.550000011920929, 1],   
+    'uColor2Smoothstep': [0, 2],   
     
     'uWaveA': [-0.35, 0.70, 0.13, 3.92],
     'uWaveB': [-0.95, 0.51, 0.10, 2.25],
@@ -296,13 +293,13 @@ const oceanConfig = {
 
 const floatingSpawnConfig = {
     enabled: true,
-    count: 100,  // Number of objects to spawn
-    seed: 16, //9,    // Reproducible randomization
+    count: 50,  // Number of objects to spawn
+    seed: 68, //9,    // Reproducible randomization // 17
     bounds: {
         minX: -70,
-        maxX: 70,
+        maxX: 50,
         minZ: -55,
-        maxZ: 200
+        maxZ: 100
     },
     yFixed: -6.5  // Fixed Y position for all floating objects
 };
@@ -322,6 +319,21 @@ if (floatingSpawnConfig.enabled) {
         console.log(`Spawned ${spawned.length} floating objects with seed ${floatingSpawnConfig.seed}`);
     });
 }
+
+
+
+ObjLoader.load(gl, './Assets/3D/Floating/barrel.obj').then(mesh => {
+    for (var i =0;  i <= 4; i ++)
+    {
+        var obj = new GameObject(renderer, matBuoyancy, mesh, 'Barrel');
+        obj.transform.position.set(-40 + floatingSpawner.seededRandom()* 8, -6.5, -21 + + floatingSpawner.seededRandom() * 8);
+        obj.transform.rotation.set(floatingSpawner.seededRandom()* 3.14/2, floatingSpawner.seededRandom()* 3.14/2, floatingSpawner.seededRandom()* 3.14/2);
+
+        obj.transform.scale.set(1, 1, 1);
+        scene.push(obj);
+    }
+});
+
 
 var CenterLOD = null;
 
@@ -484,7 +496,6 @@ function loop(now)
     game.deltaTime = Time.deltaTime;
 
     cameraController.update(Time.deltaTime);
-
     matWater.setUniforms({ 
         'uTime': Time.time,
     });
@@ -514,7 +525,8 @@ function loop(now)
     if (matSkybox.uniforms['uSunColor']) {
         skyboxPass.setLight(lightDir, 
             matSkybox.uniforms['uSunColor'].value, 
-            matSkybox.uniforms['uTopColor'].value, 
+            matSkybox.uniforms['uTopColor'].value,
+            matSkybox.uniforms['uMidColor'].value,
             matSkybox.uniforms['uBottomColor'].value
         );
     }

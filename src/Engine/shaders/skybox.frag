@@ -9,6 +9,7 @@ uniform vec3 uLightDir;
 uniform float uTime;
 
 uniform vec3 uTopColor;
+uniform vec3 uMidColor;
 uniform vec3 uBottomColor;
 uniform vec3 uSunColor;
 
@@ -44,10 +45,14 @@ float valueNoise(vec2 p) {
 }
 
 // 2 octaves only instead of 3 Worley calls
-float getCloudNoise(vec2 uv, float t) {
-    float v = valueNoise(uv + t * 0.02) * 0.65
-            + valueNoise(uv * 2.1 + t * 0.04) * 0.35;
-    return v;
+float getCloudNoise(vec2 uv, vec2 maskUV) {
+    float base = valueNoise(uv) * 0.65
+               + valueNoise(uv * 2.1) * 0.35;
+
+    float mask = valueNoise(maskUV * 0.8) * 0.6
+               + valueNoise(maskUV * 1.7 + vec2(3.1, 7.4)) * 0.4;
+
+    return base * mask;
 }
 
 void main() {
@@ -61,13 +66,24 @@ void main() {
     vec3 lightDir = normalize(uLightDir);
 
     float sunDot = max(dot(dir, lightDir), 0.0);
-    vec3 skyColor = mix(uBottomColor, uTopColor, smoothstep(-0.1, 0.8, dir.y));
+    
+    // Three-color gradient: bottom (horizon) -> mid (sky) -> top (zenith)
+    vec3 skyColor;
+    if (dir.y < 0.5) {
+        // Bottom half: blend from bottom to mid color
+        skyColor = mix(uBottomColor, uMidColor, smoothstep(-0.1, 0.5, dir.y));
+    } else {
+        // Top half: blend from mid to top color
+        skyColor = mix(uMidColor, uTopColor, smoothstep(0.5, 0.8, dir.y));
+    }
 
     float t = uTime * uCloudSpeed;
-    vec2 cloudUV = (dir.xz / (max(dir.y, 0.01) + 0.2)) * uCloudScale + vec2(t, t * 0.1);
+    vec2 cloudUV = (dir.xz / (max(dir.y, 0.01) + 0.2)) * uCloudScale;
+    vec2 baseUV  = cloudUV + vec2(t * 0.5, t * 0.1);   // slow, different angle
+    vec2 maskUV  = cloudUV + vec2(t * 0.08, -t * 0.5);   // faster, opposite drift
 
-    // Single noise sample instead of 3
-    float density = getCloudNoise(cloudUV, t);
+    float density = getCloudNoise(baseUV, maskUV);
+    
     float mask = smoothstep(1.0 - uCloudCoverage, 1.0 - uCloudCoverage + 0.2, density);
 
     // Sun occlusion
