@@ -60,7 +60,7 @@ float gradientNoise(vec2 p) {
     return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
 }
 
-void vertex(inout vec3 worldPos, inout vec3 normal, inout vec3 color, inout vec2 texCoord)
+void vertex(inout vec3 localPos, inout vec3 worldPos, inout vec3 yDisplacement, inout vec3 normal, inout vec3 color, inout vec2 texCoord, in mat4 modelMatrix)
 {
     
     vec3 gridPoint = worldPos;

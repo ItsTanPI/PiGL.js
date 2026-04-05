@@ -19,6 +19,7 @@ import { WireframePass } from './Engine/Rendering/Passes/WireframePass.js';
 import { ProfilerInstrumenter } from './Engine/Profiling/Profiler.js';
 import { Editor } from './Editor/Editor.js';
 import { CameraController } from './Engine/Input/CameraController.js';
+import { FloatingObjectSpawner } from './FloatingObjectSpawner.js';
 
 // Assets
 import screenVs from './Engine/shaders/quad_screen.vert?raw';
@@ -30,7 +31,7 @@ import skyboxFs from './Engine/shaders/skybox.frag?raw';
 import pixelArtFs from './Engine/shaders/pixelart.frag?raw';
 import waterVs from './Engine/shaders/Water.vert?raw';
 import waterFs from './Engine/shaders/Water.frag?raw';
-// import waterNFs from './Engine/shaders/WaterNormal.frag?raw';
+import BuoyancyVs from './Engine/shaders/Buoyancy.vert?raw';
 
 
 import masterVs from './Engine/shaders/ShaderLib/Master.vert?raw';
@@ -79,8 +80,9 @@ let lightingBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight,
 });
 
 
-
 const shaderMain = new Shader(gl, masterVs, masterFs);
+
+const shaderBuoyancy = new Shader(gl, [BuoyancyVs, masterVs], masterFs);
 const shaderScreen = new Shader(gl, screenVs, screenFs);
 const shaderDisplacemet = new Shader(gl, [waterVs, masterVs], [waterFs, masterFs]);
 
@@ -89,13 +91,23 @@ const shaderSkybox = new Shader(gl, screenVs, skyboxFs);
 const shaderPixelArt = new Shader(gl, screenVs, pixelArtFs);
 
 const shipTexture = new Texture(gl, './Assets/Textures/colormap.png');
-const matScene = new Material(shaderMain, 'Ship Mat');
+
+const matScene = new Material(shaderMain, 'Scene Mat');
+const matBuoyancy = new Material(shaderBuoyancy, 'Ship Mat');
 const matWater = new Material(shaderDisplacemet, 'Water');
 const matLighting = new Material(shaderLighting, 'PPL Lighting');
 const matSkybox = new Material(shaderSkybox, 'Skybox');
 const matPixelArt = new Material(shaderPixelArt, 'PixelArt');
 const matScreen = new Material(shaderScreen, 'Screen'); 
 
+
+matBuoyancy.setUniforms({ 
+    'uColor': [1.0, 1.0, 1.0, 1.0], 
+    'uHasTexture': 1.0, 
+    'uMainTex': shipTexture.texture, 
+    'uRoughness': 1.0,
+    'uSampleRadius': 0.25  // Multi-point wave sampling for smooth buoyancy
+});
 
 matScene.setUniforms({ 
     'uColor': [1.0, 1.0, 1.0, 1.0], 
@@ -105,7 +117,7 @@ matScene.setUniforms({
 });
 
 matPixelArt.setUniforms({
-    'uPixelSize': 4.0,
+    'uPixelSize': 3.0,
     'uEdgeWidth':0.5,
     'uColorLevels': 128.0,
     'uDepthThreshold': 0.025,
@@ -132,37 +144,48 @@ matSkybox.setUniforms({
     'uSunColor': [1.00, 0.33, 0.10],
     'uCloudScale': 5.4,
     'uCloudThreshold': 0.01,
-    'uCloudDensity': 0.2,
-    'uCloudCoverage': 0.76,
-    'uCloudSpeed': 0.02,
+    'uCloudDensity': 0.5,
+    'uCloudCoverage': 0.5,
+    'uCloudSpeed': 0.1,
     'uCloudMainColor': [1.0, 0.49, 0.37],
     'uCloudShadeColor': [0.9, 0.35, 0.25]
 });
 
 const waterConfig = {
     // Movement & Shape
-    'uWind': [1, 0.0],
+    'uWind': [1, 1], // Updated from image
     'uSpeed': 0.5,
     'udisplacement': 1.5,
-    'uScale': 0.2,          // Ripple frequency
+    'uScale': 1,     // Updated from image
     
-    'uColor1': [0.094, 0.271, 0.494], // Deep Navy (The pits/troughs)
-    'uColor2': [0.196, 0.404, 0.624],  // Tropical Turquoise (The slopes)
-    'uColor3': [0.8, 0.8, 1.0],   // Sea Foam White (The crests)
+    // Buoyancy Settings
+    'uBuoyancyRotation': 0.3, // Controls how much the ship tilts (0-1, where 1 is maximum)
     
-    // Smoothstep ranges for color transitions (x = min, y = max)
-    'uColor1Smoothstep': [0.0, 0.5],   // Deep to Turquoise transition
-    'uColor2Smoothstep': [0.55, 1.0],   // Turquoise to Foam transition
+    // Hex to RGB conversion:
+    // #17457d -> [0.09, 0.27, 0.49]
+    // #31679f -> [0.19, 0.40, 0.62]
+    // #ccccff -> [0.80, 0.80, 1.00]
+    'uColor1': [0.090, 0.271, 0.490], 
+    'uColor2': [0.192, 0.404, 0.624],  
+    'uColor3': [0.800, 0.800, 1.000],   
+    
+    'uColor1Smoothstep': [0, 0.5],   
+    'uColor2Smoothstep': [0.550000011920929, 1],   
     
     'uWaveA': [-0.35, 0.70, 0.13, 3.92],
     'uWaveB': [-0.95, 0.51, 0.10, 2.25],
-    'uWaveC': [1.0, -4.66, 0.10, 20.57],
+    // 'uWaveC': [1.0, -4.66, 0.10, 20.57],
+    // 'uWaveA': [2.2799999713897705, 0.699999988079071, -0.30000001192092896, 8.09000015258789],
+    // 'uWaveB': [-0.25999999046325684, 0.23999999463558197, 0.10999999940395355, 10.229999542236328],
+    'uWaveC': [-0.419999986886897815, -2.0299999713897705, 0.100000023841858, 13.449999809265137],
+    
     'uColorBands' : 3.0,
     'uRoughness': 0.0,
 };
-
-
+matBuoyancy.setUniforms(waterConfig);
 matWater.setUniforms(waterConfig);
+matBuoyancy.setUniforms({'uRoughness': 1.0,});
+
 
 // Register Materials for Editor
 const materials = {
@@ -170,7 +193,7 @@ const materials = {
     'Skybox': matSkybox,
     'PixelArt': matPixelArt,
     'Water' : matWater,
-    'Ship' : matScene
+    'Buoyancy' : matBuoyancy
 };
 
 
@@ -221,7 +244,7 @@ viewportPass.setBuffer('Final', pixelArtBuffer.texture);
 viewportPass.setBuffer('Pixel', pixelArtBuffer.texture);
 viewportPass.setBuffer('Lit', lightingBuffer.texture);
 viewportPass.setBuffer('Albedo', sceneBuffer.texture);
-viewportPass.setBuffer('Normal', Gbuffer.texture);
+viewportPass.setBuffer('Gbuffer', Gbuffer.texture);
 
 lightingPass.lightCamera = lightCamera;
 renderQueue.addPass(viewportPass);
@@ -252,17 +275,53 @@ resizeCanvas(); // Initial call
 // Perspective setup
 const aspect = canvas.width / canvas.height;
 camera.setPerspective(0.8, aspect, 0.1, 1000.0);
-camera.transform.position.set(-16.2, 1.8, -47);
+camera.transform.position.set(-39.2, 1.8, -47);
 camera.transform.rotation.set( 0.0, isMobile ? 3.24: 3.22, 0);
+
 ObjLoader.load(gl, './Assets/3D/scene.obj').then(mesh => {
     var obj = new GameObject(renderer, matScene, mesh, 'Scene');
-    obj.transform.position.set(-15, -6, 10);
+    obj.transform.position.set(-15, -6.1, 10);
     obj.transform.scale.set(1, 1, 1);
     scene.push(obj);
 });
 
-// parentoj=  scene[0];
+// === FLOATING OBJECT SPAWNER ===
+const floatingSpawner = new FloatingObjectSpawner(gl, renderer, matBuoyancy, scene);
 
+// Ocean current and spawn configuration
+const oceanConfig = {
+    direction: { x: 0.207, y: 0, z: -0.707 },  // Normalized direction (NE)
+    speed: 0.0  // Ocean drift multiplier
+};
+
+const floatingSpawnConfig = {
+    enabled: true,
+    count: 100,  // Number of objects to spawn
+    seed: 16, //9,    // Reproducible randomization
+    bounds: {
+        minX: -70,
+        maxX: 70,
+        minZ: -55,
+        maxZ: 200
+    },
+    yFixed: -6.5  // Fixed Y position for all floating objects
+};
+
+// Track all floating/ship objects
+let floatingObjects = [];
+
+// Spawn floating objects if enabled
+if (floatingSpawnConfig.enabled) {
+    floatingSpawner.setSeed(floatingSpawnConfig.seed);
+    floatingSpawner.spawnMany(
+        floatingSpawnConfig.count,
+        floatingSpawnConfig.bounds,
+        floatingSpawnConfig.yFixed
+    ).then(spawned => {
+        floatingObjects = spawned;
+        console.log(`Spawned ${spawned.length} floating objects with seed ${floatingSpawnConfig.seed}`);
+    });
+}
 
 var CenterLOD = null;
 
@@ -283,8 +342,8 @@ Promise.all([
     const LOD1_RADIUS = isMobile ? 1.0 : 0.0;  // -1 = never triggers on mobile
     const LOD2_RADIUS = isMobile ? -1 : 2.0;
 
-    const centerMesh = isMobile ? meshLOD2 : meshLOD1;
-    const centerLabel = isMobile ? 'LOD2' : 'LOD1';
+    const centerMesh = isMobile ? meshLOD1 : meshLOD1;
+    const centerLabel = isMobile ? 'LOD1' : 'LOD1';
 
     // --- Pass 1: center ---
     const centerObj = new GameObject(renderer, matWater, centerMesh, `Water Floor [0,0] ${centerLabel}`);
@@ -343,6 +402,8 @@ const game = {
     materials,
     viewportPass,
     wireframePass,
+    floatingSpawner,
+    floatingSpawnConfig,
     textures: {
         ship: shipTexture
     }
@@ -352,6 +413,37 @@ game.setViewports = (mode) => {
     viewports[0].pass = mode; 
 };
 
+// Floating object spawner control
+game.spawnFloatingObjects = async (count) => {
+    const spawned = await floatingSpawner.spawnMany(
+        count,
+        floatingSpawnConfig.bounds,
+        floatingSpawnConfig.yFixed
+    );
+    console.log(`Spawned ${spawned.length} additional floating objects`);
+    return spawned;
+};
+
+// Seed-based spawning control
+game.respawnWithSeed = async (seed) => {
+    // Keep only non-floating objects (water LOD tiles)
+    // Filter out anything with "[Floating]" in the name
+    const waterObjects = scene.filter(obj => !obj.name || !obj.name.includes('[Floating]'));
+    scene.length = 0;
+    scene.push(...waterObjects);
+    
+    // Set new seed and spawn
+    floatingSpawner.setSeed(seed);
+    floatingSpawnConfig.seed = seed;
+    const spawned = await floatingSpawner.spawnMany(
+        floatingSpawnConfig.count,
+        floatingSpawnConfig.bounds,
+        floatingSpawnConfig.yFixed
+    );
+    console.log(`✓ Respawned with seed ${seed}: ${spawned.length} objects`);
+    return spawned;
+};
+
 let profiler = null;
 
 if (!isMobile) {
@@ -359,6 +451,13 @@ if (!isMobile) {
     profiler = ProfilerInstrumenter.attach(renderQueue, renderer, game);
     game.profiler = profiler;
 }
+
+// Expose game object globally for console access
+window.game = game;
+window.floatingSpawner = floatingSpawner;
+window.oceanConfig = oceanConfig;
+window.floatingObjects = floatingObjects;
+window.floatingSpawnConfig = floatingSpawnConfig;
 
 const cameraController = new CameraController(camera, canvas);
 
@@ -389,6 +488,7 @@ function loop(now)
     matWater.setUniforms({ 
         'uTime': Time.time,
     });
+    matBuoyancy.setUniforms({'uTime': Time.time,})
     matSkybox.setUniforms({ 'uTime': Time.time });
     if (matLighting.uniforms['uLightDir'] && matLighting.uniforms['uLightDir'].value) {
         const v = matLighting.uniforms['uLightDir'].value;
@@ -418,6 +518,13 @@ function loop(now)
             matSkybox.uniforms['uBottomColor'].value
         );
     }
+
+    // Update all floating objects and ships
+    // if (floatingObjects && floatingObjects.length > 0) {
+    //     for (const obj of floatingObjects) {
+    //         obj.update(Time.deltaTime, oceanConfig.direction, oceanConfig.speed, floatingSpawnConfig.bounds, floatingObjects);
+    //     }
+    // }
 
     renderQueue.execute(renderer, scene, camera);
     

@@ -1,0 +1,412 @@
+# Blender 3.6.5 MTL File: 'untitled.blend'
+# www.blender.org
+
+newmtl colormap.001
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.002
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.003
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.004
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.005
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.006
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.072
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.073
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.078
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.080
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.082
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.083
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.084
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.087
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.090
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.091
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.092
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.093
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.094
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.095
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.096
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.097
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.098
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.099
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.100
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.102
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.103
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.104
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.105
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.113
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.114
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.115
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.117
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.126
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.135
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.136
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.137
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.138
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.141
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.142
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png
+
+newmtl colormap.143
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd D:/Assets/kenney_pirate-kit/Models/OBJ format/Textures/colormap.png

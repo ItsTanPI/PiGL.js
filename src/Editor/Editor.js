@@ -44,7 +44,7 @@ export class Editor {
         const profilerResult = this.wm.createWindow('Profiler', 20, 20, 500, 700);
         this.windows.profiler = new ProfilerWindow(this, profilerResult.content);
         this.wm.addNavItem('PROFILER', profilerResult.window);
-        // profilerResult.window.style.display = 'none';
+        profilerResult.window.style.display = 'none';
 
         // Info Window (wider/taller for better readability)
         const infoResult = this.wm.createWindow('Info', 290, 440, 380, 300);
