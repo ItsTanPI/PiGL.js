@@ -1,3 +1,5 @@
+// #region Imports
+
 import { Camera } from './Engine/Rendering/Camera.js';
 import { Shader } from './Engine/Rendering/Shader.js';
 import { Renderer } from './Engine/Rendering/Renderer.js';
@@ -7,7 +9,6 @@ import { GameObject } from './Engine/Core/GameObject.js';
 import { Time } from './Engine/Core/TimeManager.js';
 import { ObjLoader } from './Engine/Loaders/ObjLoader.js';
 import { Texture } from './Engine/Rendering/Texture.js';
-
 import { RenderQueue } from './Engine/Rendering/RenderQueue.js';
 import { ObjectRenderPass } from './Engine/Rendering/ObjectRenderPass.js';
 import { ViewportPass } from './Engine/Rendering/Passes/ViewportPass.js';
@@ -15,16 +16,14 @@ import { LightingPass } from './Engine/Rendering/Passes/LightingPass.js';
 import { SkyboxPass } from './Engine/Rendering/Passes/SkyboxPass.js';
 import { PixelArtPass } from './Engine/Rendering/Passes/PixelArtPass.js';
 import { WireframePass } from './Engine/Rendering/Passes/WireframePass.js';
-
 import { ProfilerInstrumenter } from './Engine/Profiling/Profiler.js';
 import { Editor } from './Editor/Editor.js';
 import { CameraController } from './Engine/Input/CameraController.js';
 import { FloatingObjectSpawner } from './FloatingObjectSpawner.js';
 
-// Assets
+// Shader imports
 import screenVs from './Engine/shaders/quad_screen.vert?raw';
 import screenFs from './Engine/shaders/quad_screen.frag?raw';
-
 import lightingVs from './Engine/shaders/lighting.vert?raw';
 import lightingFs from './Engine/shaders/lighting.frag?raw';
 import skyboxFs from './Engine/shaders/skybox.frag?raw';
@@ -32,26 +31,34 @@ import pixelArtFs from './Engine/shaders/pixelart.frag?raw';
 import waterVs from './Engine/shaders/Water.vert?raw';
 import waterFs from './Engine/shaders/Water.frag?raw';
 import BuoyancyVs from './Engine/shaders/Buoyancy.vert?raw';
-
-
 import masterVs from './Engine/shaders/ShaderLib/Master.vert?raw';
 import masterFs from './Engine/shaders/ShaderLib/Master.frag?raw';
 
+// #endregion
+
+// #region Configuration
+
 const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+// #endregion
+
+// #region WebGL Initialization
 
 const canvas = document.getElementById('glcanvas');
 const gl = canvas.getContext('webgl2') || canvas.getContext('experimental-webgl');
 if (!gl) { alert('Unable to initialize WebGL.'); }
 
-// gl.disable(gl.BLEND);
-// gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+// WebGL state setup
 gl.enable(gl.DEPTH_TEST);
 gl.depthFunc(gl.LEQUAL);
 gl.enable(gl.CULL_FACE);
 gl.cullFace(gl.BACK);
 gl.frontFace(gl.CCW);
-
 gl.getExtension('EXT_color_buffer_float');
+
+// #endregion
+
+// #region Render Targets
 
 // Albedo — 8bit RGBA is enough, no need for float
 let sceneBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight, {
@@ -79,18 +86,27 @@ let lightingBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight,
     minFilter: gl.NEAREST, magFilter: gl.NEAREST
 });
 
+// #endregion
+
+// #region Shaders
 
 const shaderMain = new Shader(gl, masterVs, masterFs);
-
 const shaderBuoyancy = new Shader(gl, [BuoyancyVs, masterVs], masterFs);
 const shaderScreen = new Shader(gl, screenVs, screenFs);
 const shaderDisplacemet = new Shader(gl, [waterVs, masterVs], [waterFs, masterFs]);
-
 const shaderLighting = new Shader(gl, lightingVs, lightingFs);
 const shaderSkybox = new Shader(gl, screenVs, skyboxFs);
 const shaderPixelArt = new Shader(gl, screenVs, pixelArtFs);
 
+// #endregion
+
+// #region Textures
+
 const shipTexture = new Texture(gl, './Assets/Textures/colormap.png');
+
+// #endregion
+
+// #region Materials & Uniforms
 
 const matScene = new Material(shaderMain, 'Scene Mat');
 const matBuoyancy = new Material(shaderBuoyancy, 'Ship Mat');
@@ -98,9 +114,9 @@ const matWater = new Material(shaderDisplacemet, 'Water');
 const matLighting = new Material(shaderLighting, 'PPL Lighting');
 const matSkybox = new Material(shaderSkybox, 'Skybox');
 const matPixelArt = new Material(shaderPixelArt, 'PixelArt');
-const matScreen = new Material(shaderScreen, 'Screen'); 
+const matScreen = new Material(shaderScreen, 'Screen');
 
-
+// Buoyancy material setup
 matBuoyancy.setUniforms({ 
     'uColor': [1.0, 1.0, 1.0, 1.0], 
     'uHasTexture': 1.0, 
@@ -109,37 +125,36 @@ matBuoyancy.setUniforms({
     'uSampleRadius': 0.25  // Multi-point wave sampling for smooth buoyancy
 });
 
+// Scene material setup
 matScene.setUniforms({ 
     'uColor': [1.0, 1.0, 1.0, 1.0], 
     'uHasTexture': 1.0, 
     'uMainTex': shipTexture.texture, 
-    'uRoughness':1.0
+    'uRoughness': 1.0
 });
 
+// Pixel art material setup
 matPixelArt.setUniforms({
-    'uPixelSize': 3.0,
-    'uEdgeWidth':0.5,
+    'uPixelSize': isMobile ? 1 : 3.0,
+    'uEdgeWidth': 0.5,
     'uColorLevels': 128.0,
     'uDepthThreshold': 0.025,
     'uNormalThreshold': 0.1,
     'uSilhouetteDarkening': 0.2, // Darker for outer edges
     'uCreaseDarkening': 0.7,     // Lighter for inner corners/color changes
-});;
+});
 
-// Set Initial Lighting to ensure it's not black
+// Lighting material setup
 matLighting.setUniforms({
-    'uLightDir': [1, 0.2, 10],//'uLightDir': [1, 1, 1],
-    'uLightColor': [1.0, 0.8, 0.75],//'uLightColor': [0.9, 0.9, 0.9],
+    'uLightDir': [1, 0.2, 10],
+    'uLightColor': [1.0, 0.8, 0.75],
     'uAmbient': 0.5,
     'uSpecularStrength': 0.3,
     'uShininess': 0.03
 });
 
+// Skybox material setup
 matSkybox.setUniforms({
-    // 'uTopColor': 	[0.12, 0.45, 0.85],
-    // 'uMidColor':     [0.40, 0.70, 0.90],
-    // 'uBottomColor': 	[0.70, 0.85, 0.95],
-    // 'uSunColor': 	[1.00, 1.00, 1.00],
     'uTopColor': [0.133, 0.137, 0.251],
     'uMidColor': [0.749, 0.286, 0.369],
     'uBottomColor': [0.996, 0.431, 0.243],
@@ -153,89 +168,88 @@ matSkybox.setUniforms({
     'uCloudShadeColor': [0.9, 0.35, 0.25]
 });
 
+// Water configuration shared between materials
 const waterConfig = {
-    // Movement & Shape
-    'uWind': [1, 1], // Updated from image
+    'uWind': [1, 1],
     'uSpeed': 0.5,
     'udisplacement': 1.5,
-    'uScale': 1,     // Updated from image
-    
-    'uBuoyancyRotation': 0.3, // 
-
+    'uScale': 1,
+    'uBuoyancyRotation': 0.3,
     'uColor1': [0.090, 0.271, 0.490], 
     'uColor2': [0.192, 0.404, 0.624],  
     'uColor3': [0.800, 0.800, 1.000],   
-    
     'uColor1Smoothstep': [0, 0.5],   
     'uColor2Smoothstep': [0, 2],   
-    
     'uWaveA': [-0.35, 0.70, 0.13, 3.92],
     'uWaveB': [-0.95, 0.51, 0.10, 2.25],
-    // 'uWaveC': [1.0, -4.66, 0.10, 20.57],
-    // 'uWaveA': [2.2799999713897705, 0.699999988079071, -0.30000001192092896, 8.09000015258789],
-    // 'uWaveB': [-0.25999999046325684, 0.23999999463558197, 0.10999999940395355, 10.229999542236328],
-    'uWaveC': [-0.419999986886897815, -2.0299999713897705, 0.100000023841858, 13.449999809265137],
-    
-    'uColorBands' : 3.0,
+    'uWaveC': [-0.4, -2, 0.1, 13.5],
+    'uColorBands': 3.0,
     'uRoughness': 0.0,
 };
+
 matBuoyancy.setUniforms(waterConfig);
 matWater.setUniforms(waterConfig);
-matBuoyancy.setUniforms({'uRoughness': 1.0,});
-
+matBuoyancy.setUniforms({ 'uRoughness': 1.0 });
 
 // Register Materials for Editor
 const materials = {
     'Lighting': matLighting,
     'Skybox': matSkybox,
     'PixelArt': matPixelArt,
-    'Water' : matWater,
-    'Buoyancy' : matBuoyancy
+    'Water': matWater,
+    'Buoyancy': matBuoyancy
 };
 
+// #endregion
+
+// #region Renderer & Core Systems
 
 const renderer = new Renderer(gl);
 const camera = new Camera();
-const lightCamera = new Camera(); // Camera for shadow casting
-
+const lightCamera = new Camera();
 const scene = [];
 const renderQueue = new RenderQueue(gl);
 
+// #endregion
 
-// 1. Depth Pass
+// #region Render Passes
+
+// GBuffer Pass - Depth information
 const GbufferPass = new ObjectRenderPass(gl, canvas.width, canvas.height, Gbuffer, 1, 'GBuffer Pass');
 GbufferPass.clearColor = [0.5, 0.5, 1.0, 1.0];
 GbufferPass.clearDepth = true;
 renderQueue.addPass(GbufferPass);
 
-// 4. Albedo Pass 
+// Albedo Pass
 const scenePass = new ObjectRenderPass(gl, canvas.width, canvas.height, sceneBuffer, 0, 'Albedo Pass');
 scenePass.clearColor = [0.0, 0.0, 0.0, 1.0];
 scenePass.clearDepth = true;
 renderQueue.addPass(scenePass);
 
-// 4. Lighting Pass
+// Lighting Pass
 const lightingPass = new LightingPass(gl, canvas.width, canvas.height, matLighting, lightingBuffer, 'Lighting Pass');
 lightingPass.setInputBuffers(sceneBuffer.texture, Gbuffer.texture);
 renderQueue.addPass(lightingPass);
 
-// 5. Skybox Pass (Draws on top of lighting where depth is far)
+// Skybox Pass
 const skyboxPass = new SkyboxPass(gl, canvas.width, canvas.height, matSkybox, lightingBuffer, 'Skybox Pass');
 skyboxPass.setInputTexture(Gbuffer.texture);
 renderQueue.addPass(skyboxPass);
 
-// 6. Pixel Art Pass
+// Pixel Art Pass
 const pixelArtPass = new PixelArtPass(gl, canvas.width, canvas.height, matPixelArt, pixelArtBuffer, 'PixelArt Pass');
 pixelArtPass.setInputBuffers(lightingBuffer.texture, Gbuffer.texture);
 renderQueue.addPass(pixelArtPass);
 
-// 6b. Wireframe Pass (disabled by default, toggle with 'T' key)
+// Wireframe Pass (Desktop only)
 const wireframePass = new WireframePass(gl, canvas.width, canvas.height, pixelArtBuffer, 'Wireframe Pass');
-wireframePass.setWireColor(0.0, 1.0, 0.0);  // Green wireframe
-wireframePass.setOpacity(1.0);
-renderQueue.addPass(wireframePass);
+if (!isMobile) {
+    wireframePass.setWireColor(0.0, 1.0, 0.0);
+    wireframePass.setOpacity(1.0);
+    renderQueue.addPass(wireframePass);
+}
 
-// 7. Viewport Pass
+// Viewport Pass - Final compositing
 const viewportPass = new ViewportPass(gl, canvas.width, canvas.height, matScreen);
 viewportPass.setBuffer('Final', pixelArtBuffer.texture);
 viewportPass.setBuffer('Pixel', pixelArtBuffer.texture);
@@ -246,68 +260,89 @@ viewportPass.setBuffer('Gbuffer', Gbuffer.texture);
 lightingPass.lightCamera = lightCamera;
 renderQueue.addPass(viewportPass);
 
+// #endregion
+
+// #region Window Management
 
 function resizeCanvas() {
-    canvas.width = window.innerWidth * window.devicePixelRatio;
-    canvas.height = window.innerHeight * window.devicePixelRatio;
-    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-    
-    // Resize buffers
-    sceneBuffer.resize(canvas.width, canvas.height);
-    Gbuffer.resize(canvas.width, canvas.height);
-    lightingBuffer.resize(canvas.width, canvas.height);
-    pixelArtBuffer.resize(canvas.width, canvas.height);
-    // shadowBuffer is fixed size for now or could be dynamic
-    
-    // Resize passes
-    renderQueue.resize(canvas.width, canvas.height);
+    // 1. Physical Canvas size (the display size on screen)
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-    // Update Camera Aspect Ratio
+    // 2. Calculate the internal "Render Resolution"
+    const scale = isMobile ? 0.5 : 1.0;
+    const renderW = Math.floor(canvas.width * scale);
+    const renderH = Math.floor(canvas.height * scale);
+
+    // 3. Set the Viewport to match the Render Resolution
+    gl.viewport(0, 0, renderW, renderH);
+    
+    // 4. Resize your Buffers to the Render Resolution, NOT the window size
+    // This is where the actual performance gain happens
+    sceneBuffer.resize(renderW, renderH);
+    Gbuffer.resize(renderW, renderH);
+    lightingBuffer.resize(renderW, renderH);
+    pixelArtBuffer.resize(renderW, renderH);
+    
+    renderQueue.resize(renderW, renderH);
+
+    // 5. Camera aspect ratio should still use the visual aspect
     const aspect = canvas.width / canvas.height;
     camera.setPerspective(0.8, aspect, 0.1, 1000.0);
 }
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas(); // Initial call
 
-// Perspective setup
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// #endregion
+
+// #region Camera Setup
+
 const aspect = canvas.width / canvas.height;
 camera.setPerspective(0.8, aspect, 0.1, 1000.0);
 camera.transform.position.set(-39.2, 1.8, -47);
-camera.transform.rotation.set( 0.0, isMobile ? 3.24: 3.22, 0);
+camera.transform.rotation.set(0.0, isMobile ? 3.24 : 3.22, 0);
+
+const size = 30.0;
+lightCamera.setOrthographic(-size, size, -size, size, 1.0, 100.0);
+
+// #endregion
+
+// #region Scene Objects Loading
 
 ObjLoader.load(gl, './Assets/3D/scene.obj').then(mesh => {
-    var obj = new GameObject(renderer, matScene, mesh, 'Scene');
+    const obj = new GameObject(renderer, matScene, mesh, 'Scene');
     obj.transform.position.set(-15, -6.1, 10);
     obj.transform.scale.set(1, 1, 1);
     scene.push(obj);
 });
 
-// === FLOATING OBJECT SPAWNER ===
+// #endregion
+
+// #region Floating Objects Configuration
+
 const floatingSpawner = new FloatingObjectSpawner(gl, renderer, matBuoyancy, scene);
 
-// Ocean current and spawn configuration
 const oceanConfig = {
-    direction: { x: 0.207, y: 0, z: -0.707 },  // Normalized direction (NE)
-    speed: 0.0  // Ocean drift multiplier
+    direction: { x: 0.207, y: 0, z: -0.707 },
+    speed: 0.0
 };
 
 const floatingSpawnConfig = {
-    enabled: true,
-    count: 50,  // Number of objects to spawn
-    seed: 68, //9,    // Reproducible randomization // 17
+    enabled: isMobile ? false : true,
+    count: 50,
+    seed: 68,
     bounds: {
         minX: -70,
         maxX: 50,
         minZ: -55,
         maxZ: 100
     },
-    yFixed: -6.5  // Fixed Y position for all floating objects
+    yFixed: -6.5
 };
 
-// Track all floating/ship objects
 let floatingObjects = [];
 
-// Spawn floating objects if enabled
 if (floatingSpawnConfig.enabled) {
     floatingSpawner.setSeed(floatingSpawnConfig.seed);
     floatingSpawner.spawnMany(
@@ -320,30 +355,45 @@ if (floatingSpawnConfig.enabled) {
     });
 }
 
+// #endregion
 
+// #region Additional Scene Objects
 
-ObjLoader.load(gl, './Assets/3D/Floating/barrel.obj').then(mesh => {
-    for (var i =0;  i <= 4; i ++)
-    {
-        var obj = new GameObject(renderer, matBuoyancy, mesh, 'Barrel');
-        obj.transform.position.set(-40 + floatingSpawner.seededRandom()* 8, -6.5, -21 + + floatingSpawner.seededRandom() * 8);
-        obj.transform.rotation.set(floatingSpawner.seededRandom()* 3.14/2, floatingSpawner.seededRandom()* 3.14/2, floatingSpawner.seededRandom()* 3.14/2);
+// Load Mobile Ships
 
+if (isMobile) 
+{
+    floatingSpawner.setSeed(3);
+    ObjLoader.load(gl, './Assets/3D/Floating/ship-pirate-small.obj').then(mesh => {
+        for (let i = 0; i < 3; i++) {
+            const obj = new GameObject(renderer, matBuoyancy, mesh, 'Barrel');
+            obj.transform.position.set(
+                -25 + (floatingSpawner.seededRandom()-0.5) * 45, 
+                -6.5, 
+                80 + (floatingSpawner.seededRandom()-0.5) * 45
+        );
+        obj.transform.rotation.set(
+            0, 
+            (floatingSpawner.seededRandom()-0.5) * 3.14*2, 
+            0
+        );
         obj.transform.scale.set(1, 1, 1);
         scene.push(obj);
     }
 });
+}
 
+// #endregion
 
-var CenterLOD = null;
+// #region Water LOD System
 
+let CenterLOD = null;
 
 Promise.all([
     ObjLoader.load(gl, './Assets/3D/LOD1.obj'),
     ObjLoader.load(gl, './Assets/3D/LOD2.obj'),
     ObjLoader.load(gl, './Assets/3D/LOD3.obj')
 ]).then(([meshLOD1, meshLOD2, meshLOD3]) => {
-
     const offset = 80;
     const yPos = -6.5;
     const scale = 50;
@@ -351,13 +401,13 @@ Promise.all([
 
     // Mobile: LOD2 center, LOD3 everything else
     // Desktop: LOD1 center, LOD2 mid ring, LOD3 outer
-    const LOD1_RADIUS = isMobile ? 1.0 : 0.0;  // -1 = never triggers on mobile
+    const LOD1_RADIUS = isMobile ? 1.0 : 0.0;
     const LOD2_RADIUS = isMobile ? -1 : 2.0;
 
-    const centerMesh = isMobile ? meshLOD1 : meshLOD1;
-    const centerLabel = isMobile ? 'LOD1' : 'LOD1';
+    const centerMesh = isMobile ? meshLOD2 : meshLOD1;
+    const centerLabel = isMobile ? 'LOD2' : 'LOD1';
 
-    // --- Pass 1: center ---
+    // Center water mesh
     const centerObj = new GameObject(renderer, matWater, centerMesh, `Water Floor [0,0] ${centerLabel}`);
     centerObj.transform.position.set(0, yPos, 0);
     centerObj.transform.scale.set(scale, scale, scale);
@@ -365,16 +415,16 @@ Promise.all([
     CenterLOD = centerObj;
 
     if (isMobile) {
-    // Triangle / FOV shape for mobile
-    for (let z = 0; z <= radius; z++) {
-        for (let x = -z; x <= z; x++) {
-            if (x === 0 && z === 0) continue;
+        // Triangle/FOV shape for mobile
+        for (let z = 0; z <= radius; z++) {
+            for (let x = -z; x <= z; x++) {
+                if (x === 0 && z === 0) continue;
 
-            const obj = new GameObject(renderer, matWater, meshLOD3, `Water Floor [${x},${z}] LOD3`);
-            centerObj.transform.add(obj.transform);
-            obj.transform.setGlobalPosition(x * offset, yPos, z * offset);
+                const obj = new GameObject(renderer, matWater, meshLOD3, `Water Floor [${x},${z}] LOD3`);
+                centerObj.transform.add(obj.transform);
+                obj.transform.setGlobalPosition(x * offset, yPos, z * offset);
+            }
         }
-    }
     } else {
         // Full grid for desktop
         for (let x = -radius; x <= radius; x++) {
@@ -383,11 +433,11 @@ Promise.all([
 
                 const dist = Math.sqrt(x * x + z * z);
                 const mesh = dist <= LOD1_RADIUS ? meshLOD1 
-                        : dist <= LOD2_RADIUS ? meshLOD2 
-                        : meshLOD3;
+                    : dist <= LOD2_RADIUS ? meshLOD2 
+                    : meshLOD3;
                 const lodLevel = dist <= LOD1_RADIUS ? 1 
-                            : dist <= LOD2_RADIUS ? 2 
-                            : 3;
+                    : dist <= LOD2_RADIUS ? 2 
+                    : 3;
 
                 const obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}] LOD${lodLevel}`);
                 centerObj.transform.add(obj.transform);
@@ -397,12 +447,18 @@ Promise.all([
     }
 });
 
-const viewports = [
-    { x: 0.0, y: 0.0, w: 1.0, h: 1.0, pass: 'Final' } // Default Fullscreen
-];
+// #endregion
 
+// #region Viewport Configuration
+
+const viewports = [
+    { x: 0.0, y: 0.0, w: 1.0, h: 1.0, pass: 'Final' }
+];
 viewportPass.setViewports(viewports);
 
+// #endregion
+
+// #region Game
 
 const game = {
     gl,
@@ -420,6 +476,10 @@ const game = {
         ship: shipTexture
     }
 };
+
+// #endregion
+
+// #region Game API
 
 game.setViewports = (mode) => {
     viewports[0].pass = mode; 
@@ -473,55 +533,60 @@ window.floatingSpawnConfig = floatingSpawnConfig;
 
 const cameraController = new CameraController(camera, canvas);
 
-// Keyboard shortcuts for debugging
+// #endregion
+
+// #region Input & Debugging
+
 window.addEventListener('keydown', (e) => {
     if (e.key.toLowerCase() === 't') {
         wireframePass.toggle();
     }
 });
 
-// Pre-allocate light direction array for per-frame loop
+// #endregion
+
+// #region Animation Loop Setup
+
 const lightDir = [0.5, 0.8, 0.2];
-
-const size = 30.0;
-lightCamera.setOrthographic(-size, size, -size, size, 1.0, 100.0);
-
-// HUD update state: throttle updates to reduce string allocations
 let hudUpdateCounter = 0;
 let lastHudContent = '';
 
-function loop(now) 
-{    
+// #endregion
+
+// #region Main Animation Loop
+
+function loop(now) {
     Time.update(now);
     game.deltaTime = Time.deltaTime;
 
     cameraController.update(Time.deltaTime);
-    matWater.setUniforms({ 
-        'uTime': Time.time,
-    });
-    matBuoyancy.setUniforms({'uTime': Time.time,})
+    
+    // Update material uniforms with time
+    matWater.setUniforms({ 'uTime': Time.time });
+    matBuoyancy.setUniforms({ 'uTime': Time.time });
     matSkybox.setUniforms({ 'uTime': Time.time });
+    
+    // Update light direction
     if (matLighting.uniforms['uLightDir'] && matLighting.uniforms['uLightDir'].value) {
         const v = matLighting.uniforms['uLightDir'].value;
-        const len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+        const len = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
         if (len > 0.001) {
-            lightDir[0] = v[0]/len;
-            lightDir[1] = v[1]/len;
-            lightDir[2] = v[2]/len;
+            lightDir[0] = v[0] / len;
+            lightDir[1] = v[1] / len;
+            lightDir[2] = v[2] / len;
         } else {
-             lightDir[0] = v[0];
-             lightDir[1] = v[1];
-             lightDir[2] = v[2];
+            lightDir[0] = v[0];
+            lightDir[1] = v[1];
+            lightDir[2] = v[2];
         }
     }
 
     camera.updateView();
-
     viewportPass.setViewports(viewports);
-
     camera.updateProjection();
     lightCamera.updateProjection();
 
+    // Update skybox lighting
     if (matSkybox.uniforms['uSunColor']) {
         skyboxPass.setLight(lightDir, 
             matSkybox.uniforms['uSunColor'].value, 
@@ -531,42 +596,32 @@ function loop(now)
         );
     }
 
-    // Update all floating objects and ships
-    // if (floatingObjects && floatingObjects.length > 0) {
-    //     for (const obj of floatingObjects) {
-    //         obj.update(Time.deltaTime, oceanConfig.direction, oceanConfig.speed, floatingSpawnConfig.bounds, floatingObjects);
-    //     }
-    // }
-
     renderQueue.execute(renderer, scene, camera);
-    
+    gl.flush()
+    gl.finish() 
+    // Update HUD with performance metrics
     const hud = document.getElementById('hud');
     if (hud) {
-        // Throttle HUD updates to every 6 frames to reduce string allocation pressure
         hudUpdateCounter++;
         if (hudUpdateCounter >= 6) {
             hudUpdateCounter = 0;
             
-            // Current FPS: Pad to 3 digits (e.g., "060")
             const fpsValue = Time.unscaledDeltaTime > 0 ? Math.round(1.0 / Time.unscaledDeltaTime) : 0;
             const fps = fpsValue.toString().padStart(3, '0');
 
             let avgStr = "";
             if (profiler && profiler.fpsHistory && profiler.fpsHistory.length > 0) {
                 let sumFps = 0;
-                let histLen = profiler.fpsHistory.length;
-                let countFps = Math.min(histLen, 60);
+                const histLen = profiler.fpsHistory.length;
+                const countFps = Math.min(histLen, 60);
                 for (let i = histLen - countFps; i < histLen; i++) {
                     sumFps += profiler.fpsHistory[i];
                 }
-                // Avg FPS: Pad to 3 digits
                 const avgVal = Math.round(sumFps / countFps).toString().padStart(3, '0');
                 avgStr = ` <br> Avg FPS: ${avgVal}`;
             }
 
-            // Delta Time: Pad to 3 whole digits and 2 decimals (e.g., "016.67")
             const deltaMs = (Time.deltaTime * 1000).toFixed(2).padStart(6, '0');
-
             lastHudContent = `FPS: ${fps}${avgStr}<br>Δ: ${deltaMs} ms`;
             hud.innerHTML = lastHudContent;
         }
@@ -574,5 +629,8 @@ function loop(now)
 
     requestAnimationFrame(loop);
 }
+
+// #endregion
+
 requestAnimationFrame(loop);
 
