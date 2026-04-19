@@ -1,8 +1,8 @@
 precision highp float;
 
 #define FRAGMENT
-varying float vNoise;
-varying vec3 vWorldPos;
+in float vNoise;
+in vec3 vWorldPos;
 
 uniform float uTime;
 uniform float uSpeed;

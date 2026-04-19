@@ -95,6 +95,8 @@ export class ObjectRenderPass extends RenderPass {
             if (!obj.active) return;
             if (obj.material) {
                 obj.material.setUniform('uRenderMode', this.renderMode, '1i');
+                obj.material.setUniform('uCameraPos', [renderCamera.transform.globalPosition.x, renderCamera.transform.globalPosition.y, renderCamera.transform.globalPosition.z]);
+                
             }
             obj.render(renderCamera, this.renderTarget);
             

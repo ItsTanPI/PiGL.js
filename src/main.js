@@ -21,6 +21,7 @@ import { Editor } from './Editor/Editor.js';
 import { CameraController } from './Engine/Input/CameraController.js';
 import { FloatingObjectSpawner } from './FloatingObjectSpawner.js';
 
+
 // Shader imports
 import screenVs from './Engine/shaders/quad_screen.vert?raw';
 import screenFs from './Engine/shaders/quad_screen.frag?raw';
@@ -33,6 +34,8 @@ import waterFs from './Engine/shaders/Water.frag?raw';
 import BuoyancyVs from './Engine/shaders/Buoyancy.vert?raw';
 import masterVs from './Engine/shaders/ShaderLib/Master.vert?raw';
 import masterFs from './Engine/shaders/ShaderLib/Master.frag?raw';
+import { HexGridMesh } from './HexGridMesh.js';
+import { LandObjectSpawner } from './LandObjectSpawner.js';
 
 // #endregion
 
@@ -103,12 +106,16 @@ const shaderPixelArt = new Shader(gl, screenVs, pixelArtFs);
 // #region Textures
 
 const shipTexture = new Texture(gl, './Assets/Textures/colormap.png');
+const islandTexture = new Texture(gl, './Assets/Textures/island.png');
+
 
 // #endregion
 
 // #region Materials & Uniforms
 
 const matScene = new Material(shaderMain, 'Scene Mat');
+const planeTer = new Material(shaderMain, 'Scene Plane');
+
 const matBuoyancy = new Material(shaderBuoyancy, 'Ship Mat');
 const matWater = new Material(shaderDisplacemet, 'Water');
 const matLighting = new Material(shaderLighting, 'PPL Lighting');
@@ -133,12 +140,19 @@ matScene.setUniforms({
     'uRoughness': 1.0
 });
 
+planeTer.setUniforms({ 
+    'uColor': [1.0, 1.0, 1.0, 1.0], 
+    'uHasTexture': 0.0, 
+    'uMainTex': islandTexture.texture, 
+    'uRoughness': 1.0
+});
+
 // Pixel art material setup
 matPixelArt.setUniforms({
     'uPixelSize': isMobile ? 1 : 3.0,
     'uEdgeWidth': 0.5,
     'uColorLevels': 128.0,
-    'uDepthThreshold': 0.025,
+    'uDepthThreshold': 0.01,
     'uNormalThreshold': 0.1,
     'uSilhouetteDarkening': 0.2, // Darker for outer edges
     'uCreaseDarkening': 0.7,     // Lighter for inner corners/color changes
@@ -185,6 +199,8 @@ const waterConfig = {
     'uWaveC': [-0.4, -2, 0.1, 13.5],
     'uColorBands': 3.0,
     'uRoughness': 0.0,
+    'uDepthThreshold':0.5,
+    'uFoamIntensity':1.0
 };
 
 matBuoyancy.setUniforms(waterConfig);
@@ -197,8 +213,11 @@ const materials = {
     'Skybox': matSkybox,
     'PixelArt': matPixelArt,
     'Water': matWater,
-    'Buoyancy': matBuoyancy
+    'Buoyancy': matBuoyancy,
+    'planeTer': planeTer
 };
+var  a = {num: 10, num2 : 20}
+
 
 // #endregion
 
@@ -310,18 +329,29 @@ lightCamera.setOrthographic(-size, size, -size, size, 1.0, 100.0);
 
 // #region Scene Objects Loading
 
-ObjLoader.load(gl, './Assets/3D/scene.obj').then(mesh => {
-    const obj = new GameObject(renderer, matScene, mesh, 'Scene');
-    obj.transform.position.set(-15, -6.1, 10);
-    obj.transform.scale.set(1, 1, 1);
-    scene.push(obj);
-});
+
+var Terrain = new GameObject(renderer, planeTer, new HexGridMesh(gl, 255, 255, 1.0, true), 'Scense');
+Terrain.transform.position.set( -(255 * Math.sqrt(3)/2), -11 , -(255 * 1.5/2));
+Terrain.transform.scale.set(1, 0.4, 1);
+scene.push(Terrain);
+
+
+// ObjLoader.load(gl, './Assets/3D/scene1.obj').then(mesh => {
+//     const obj = new GameObject(renderer, matScene, mesh, 'Scene');
+//     obj.transform.position.set(-15, -6.1, 10);
+//     obj.transform.scale.set(1, 1, 1);
+//     scene.push(obj);
+// });
+
 
 // #endregion
 
 // #region Floating Objects Configuration
 
 const floatingSpawner = new FloatingObjectSpawner(gl, renderer, matBuoyancy, scene);
+const landSpawner = new LandObjectSpawner(gl, renderer, matScene, scene, [], {
+    threshold: 0.425
+});
 
 const oceanConfig = {
     direction: { x: 0.207, y: 0, z: -0.707 },
@@ -333,15 +363,16 @@ const floatingSpawnConfig = {
     count: 50,
     seed: 68,
     bounds: {
-        minX: -70,
-        maxX: 50,
-        minZ: -55,
-        maxZ: 100
+        minX: -(255 * Math.sqrt(3)/2),
+        maxX: (255 * Math.sqrt(3)/2),
+        minZ: -(255 * 1.5/2),
+        maxZ: (255 * 1.5/2)
     },
-    yFixed: -6.5
+    yFixed: -6.25
 };
 
 let floatingObjects = [];
+let landObjects = [];
 
 if (floatingSpawnConfig.enabled) {
     floatingSpawner.setSeed(floatingSpawnConfig.seed);
@@ -352,6 +383,16 @@ if (floatingSpawnConfig.enabled) {
     ).then(spawned => {
         floatingObjects = spawned;
         console.log(`Spawned ${spawned.length} floating objects with seed ${floatingSpawnConfig.seed}`);
+    });
+
+    landSpawner.setSeed(floatingSpawnConfig.seed);
+    landSpawner.spawnMany(
+        150,
+        floatingSpawnConfig.bounds,
+        -11.0
+    ).then(spawned => {
+        landObjects = spawned;
+        console.log(`Spawned ${spawned.length} land objects with seed ${floatingSpawnConfig.seed}`);
     });
 }
 
@@ -365,7 +406,7 @@ if (isMobile)
 {
     floatingSpawner.setSeed(3);
     ObjLoader.load(gl, './Assets/3D/Floating/ship-pirate-small.obj').then(mesh => {
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 5; i++) {
             const obj = new GameObject(renderer, matBuoyancy, mesh, 'Barrel');
             obj.transform.position.set(
                 -25 + (floatingSpawner.seededRandom()-0.5) * 45, 
@@ -388,64 +429,79 @@ if (isMobile)
 // #region Water LOD System
 
 let CenterLOD = null;
+let meshLOD1 = new HexGridMesh(gl, 255, 255, 1.0)
+const centerObj = new GameObject(renderer, matWater, meshLOD1, `Water Floor [0,0]`);
+centerObj.transform.position.set(-(255 * Math.sqrt(3)/2), -6.5, -(255 * 1.5/2));
+centerObj.transform.scale.set(1, 1, 1);
+scene.push(centerObj);
+CenterLOD = centerObj;
 
-Promise.all([
-    ObjLoader.load(gl, './Assets/3D/LOD1.obj'),
-    ObjLoader.load(gl, './Assets/3D/LOD2.obj'),
-    ObjLoader.load(gl, './Assets/3D/LOD3.obj')
-]).then(([meshLOD1, meshLOD2, meshLOD3]) => {
-    const offset = 80;
-    const yPos = -6.5;
-    const scale = 50;
-    const radius = 5;
 
-    // Mobile: LOD2 center, LOD3 everything else
-    // Desktop: LOD1 center, LOD2 mid ring, LOD3 outer
-    const LOD1_RADIUS = isMobile ? 1.0 : 0.0;
-    const LOD2_RADIUS = isMobile ? -1 : 2.0;
 
-    const centerMesh = isMobile ? meshLOD2 : meshLOD1;
-    const centerLabel = isMobile ? 'LOD2' : 'LOD1';
+// Promise.all([
+//     ObjLoader.load(gl, './Assets/3D/LOD1.obj'),
+//     ObjLoader.load(gl, './Assets/3D/LOD2.obj'),
+//     ObjLoader.load(gl, './Assets/3D/LOD3.obj')
+// ]).then(([meshLOD1, meshLOD2, meshLOD3]) => {
+//     const offset = 80;
+//     const yPos = -6.5;
+//     const scale = 50;
+//     const radius = 5;
 
-    // Center water mesh
-    const centerObj = new GameObject(renderer, matWater, centerMesh, `Water Floor [0,0] ${centerLabel}`);
-    centerObj.transform.position.set(0, yPos, 0);
-    centerObj.transform.scale.set(scale, scale, scale);
-    scene.push(centerObj);
-    CenterLOD = centerObj;
+//     meshLOD1 = new HexGridMesh(gl, 255, 255, 1.0)
+    
 
-    if (isMobile) {
-        // Triangle/FOV shape for mobile
-        for (let z = 0; z <= radius; z++) {
-            for (let x = -z; x <= z; x++) {
-                if (x === 0 && z === 0) continue;
+//     // Mobile: LOD2 center, LOD3 everything else
+//     // Desktop: LOD1 center, LOD2 mid ring, LOD3 outer
+//     const LOD1_RADIUS = isMobile ? 1.0 : 0.0;
+//     const LOD2_RADIUS = isMobile ? -1 : -1.0;
 
-                const obj = new GameObject(renderer, matWater, meshLOD3, `Water Floor [${x},${z}] LOD3`);
-                centerObj.transform.add(obj.transform);
-                obj.transform.setGlobalPosition(x * offset, yPos, z * offset);
-            }
-        }
-    } else {
-        // Full grid for desktop
-        for (let x = -radius; x <= radius; x++) {
-            for (let z = -radius; z <= radius; z++) {
-                if (x === 0 && z === 0) continue;
+//     const centerMesh = isMobile ? meshLOD2 : meshLOD1;
+//     const centerLabel = isMobile ? 'LOD2' : 'LOD1';
 
-                const dist = Math.sqrt(x * x + z * z);
-                const mesh = dist <= LOD1_RADIUS ? meshLOD1 
-                    : dist <= LOD2_RADIUS ? meshLOD2 
-                    : meshLOD3;
-                const lodLevel = dist <= LOD1_RADIUS ? 1 
-                    : dist <= LOD2_RADIUS ? 2 
-                    : 3;
+//     // Center water mesh
+//     const centerObj = new GameObject(renderer, matWater, centerMesh, `Water Floor [0,0] ${centerLabel}`);
+//     centerObj.transform.position.set(-(255 * Math.sqrt(3)/2), yPos-0.5, -(255 * 1.5/2));
+//     centerObj.transform.scale.set(1, 1, 1);
+//     scene.push(centerObj);
+//     CenterLOD = centerObj;
 
-                const obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}] LOD${lodLevel}`);
-                centerObj.transform.add(obj.transform);
-                obj.transform.setGlobalPosition(x * offset, yPos, z * offset);
-            }
-        }
-    }
-});
+//     if (isMobile) {
+//         // Triangle/FOV shape for mobile
+//         for (let z = 0; z <= radius; z++) {
+//             for (let x = -z; x <= z; x++) {
+//                 if (x === 0 && z === 0) continue;
+
+//                 const obj = new GameObject(renderer, matWater, meshLOD3, `Water Floor [${x},${z}] LOD3`);
+//                 centerObj.transform.add(obj.transform);
+//                 obj.transform.setGlobalPosition(x * offset, yPos-0.5, z * offset);
+//                 obj.transform.scale.set(scale, scale, scale);
+
+//             }
+//         }
+//     } else {
+//         // Full grid for desktop
+//         for (let x = -radius; x <= radius; x++) {
+//             for (let z = -radius; z <= radius; z++) {
+//                 if (x === 0 && z === 0) continue;
+
+//                 const dist = Math.sqrt(x * x + z * z);
+//                 const mesh = dist <= LOD1_RADIUS ? meshLOD1 
+//                     : dist <= LOD2_RADIUS ? meshLOD2 
+//                     : meshLOD3;
+//                 const lodLevel = dist <= LOD1_RADIUS ? 1 
+//                     : dist <= LOD2_RADIUS ? 2 
+//                     : 3;
+
+//                 const obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}] LOD${lodLevel}`);
+//                 centerObj.transform.add(obj.transform);
+//                 obj.transform.setGlobalPosition(x * offset, yPos, z * offset);
+//                 obj.transform.scale.set(scale, scale, scale);
+
+//             }
+//         }
+//     }
+// });
 
 // #endregion
 
@@ -471,6 +527,7 @@ const game = {
     viewportPass,
     wireframePass,
     floatingSpawner,
+    landSpawner,
     floatingSpawnConfig,
     textures: {
         ship: shipTexture
@@ -496,6 +553,16 @@ game.spawnFloatingObjects = async (count) => {
     return spawned;
 };
 
+game.spawnLandObjects = async (count) => {
+    const spawned = await landSpawner.spawnMany(
+        count,
+        floatingSpawnConfig.bounds,
+        -11.0
+    );
+    console.log(`Spawned ${spawned.length} additional land objects`);
+    return spawned;
+};
+
 // Seed-based spawning control
 game.respawnWithSeed = async (seed) => {
     // Keep only non-floating objects (water LOD tiles)
@@ -506,13 +573,19 @@ game.respawnWithSeed = async (seed) => {
     
     // Set new seed and spawn
     floatingSpawner.setSeed(seed);
+    landSpawner.setSeed(seed);
     floatingSpawnConfig.seed = seed;
     const spawned = await floatingSpawner.spawnMany(
         floatingSpawnConfig.count,
         floatingSpawnConfig.bounds,
         floatingSpawnConfig.yFixed
     );
-    console.log(`✓ Respawned with seed ${seed}: ${spawned.length} objects`);
+    landObjects = await landSpawner.spawnMany(
+        120,
+        floatingSpawnConfig.bounds,
+        -11.0
+    );
+    console.log(`Respawned with seed ${seed}: ${spawned.length} objects`);
     return spawned;
 };
 
@@ -527,8 +600,10 @@ if (!isMobile) {
 // Expose game object globally for console access
 window.game = game;
 window.floatingSpawner = floatingSpawner;
+window.landSpawner = landSpawner;
 window.oceanConfig = oceanConfig;
 window.floatingObjects = floatingObjects;
+window.landObjects = landObjects;
 window.floatingSpawnConfig = floatingSpawnConfig;
 
 const cameraController = new CameraController(camera, canvas);
