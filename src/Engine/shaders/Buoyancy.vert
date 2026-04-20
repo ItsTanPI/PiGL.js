@@ -14,7 +14,7 @@ uniform vec4 uWaveA;
 uniform vec4 uWaveB;
 uniform vec4 uWaveC;
 
-varying vec3 vWorldPos;
+out vec3 vWorldPos;
 
 vec3 GerstnerWave(vec4 wave, vec3 p, inout vec3 tangent, inout vec3 binormal) {
     float steepness = wave.z;

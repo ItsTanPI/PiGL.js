@@ -37,6 +37,9 @@ export class CameraController {
             isDown: false
         };
 
+        /** @type {boolean} Whether Shift is currently pressed (for speed boost). */
+        this.shiftPressed = false;
+
         // Sync initial rotation
         /** @type {Object} Current rotation: x (pitch), y (yaw). */
         this.rotation = {
@@ -95,6 +98,12 @@ export class CameraController {
 
     _onKey(e, isDown) {
         const key = e.key.toLowerCase();
+        // Track modifier key for speed boost
+        if (key === 'shift') {
+            this.shiftPressed = isDown;
+            return;
+        }
+
         if (this.keys.hasOwnProperty(key)) {
             this.keys[key] = isDown;
         }
@@ -111,7 +120,7 @@ export class CameraController {
      * to the camera transform. Position changes use Time.deltaTime internally.
      */
     update(dt) {
-        const speed = this.moveSpeed * dt;
+        const speed = this.moveSpeed * (this.shiftPressed ? 2.0 : 1.0) * dt;
         const transform = this.camera.transform;
         
         // Calculate Forward and Right vectors from Yaw (Y rotation)

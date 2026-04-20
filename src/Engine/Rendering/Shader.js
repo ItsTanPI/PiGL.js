@@ -164,7 +164,28 @@ export class Shader {
     loadShader(type, source) {
         let finalSource = source;
         if (Array.isArray(source)) {
-            finalSource = source.join('\n');
+            let versionLine = '';
+            const cleanedChunks = source.map((chunk) => {
+                if (typeof chunk !== 'string') return '';
+                const lines = chunk.split(/\r?\n/);
+                const filtered = [];
+                for (const line of lines) {
+                    const trimmed = line.trim();
+                    if (trimmed.startsWith('#version')) {
+                        if (!versionLine) {
+                            versionLine = line.trim();
+                        }
+                        continue;
+                    }
+                    filtered.push(line);
+                }
+                return filtered.join('\n');
+            });
+            if (versionLine) {
+                finalSource = `${versionLine}\n${cleanedChunks.join('\n')}`;
+            } else {
+                finalSource = cleanedChunks.join('\n');
+            }
         }
 
         let shader;

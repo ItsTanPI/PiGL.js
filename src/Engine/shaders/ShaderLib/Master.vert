@@ -1,18 +1,20 @@
+#version 300 es
 precision highp float;
 
-attribute vec3 aVertexPosition;
-attribute vec3 aNormal;
-attribute vec3 aColor;
-attribute vec2 aTexCoord;
+in vec3 aVertexPosition;
+in vec3 aNormal;
+in vec3 aColor;
+in vec2 aTexCoord;
 
 uniform mat4 uViewMatrix;
 uniform mat4 uProjectionMatrix;
 uniform mat4 uModelMatrix;
+uniform vec3 uCameraPos;
 
-varying vec3 vNormal;
-varying vec3 vPosition;
-varying vec3 vColor;
-varying vec2 vTexCoord;
+out vec3 vNormal;
+out vec3 vPosition;
+out vec3 vColor;
+out vec2 vTexCoord;
 
 void vertex(inout vec3 localPos, inout vec3 worldPos, inout vec3 yDisplacement, inout vec3 normal, inout vec3 color, inout vec2 texCoord, in mat4 modelMatrix);
 
@@ -52,4 +54,12 @@ void main()
     vTexCoord = texCoord;
 
     gl_Position = uProjectionMatrix * uViewMatrix * vec4(worldPos, 1.0);
+
+    // Spherical transformation relative to camera position
+    vec3 pos = worldPos;
+    vec3 offsetFromCamera = pos - uCameraPos;
+    float r = (offsetFromCamera.x * offsetFromCamera.x) + (offsetFromCamera.z * offsetFromCamera.z);
+    
+    gl_Position = uProjectionMatrix * uViewMatrix * (vec4(pos, 1.0) + vec4(0.0, r / -4000.0, 0.0, 0.0));
+
 }

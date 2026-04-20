@@ -97,6 +97,16 @@ export class Mesh {
             }
         }
 
+        // Color Attribute (if shader supports it)
+        if (this.colorBuffer) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuffer);
+            const aCol = shader.getAttribLocation('aColor');
+            if (aCol !== -1) {
+                gl.enableVertexAttribArray(aCol);
+                gl.vertexAttribPointer(aCol, 3, gl.FLOAT, false, 0, 0);
+            }
+        }
+
         if (this.indexBuffer) {
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
         }

@@ -8,8 +8,8 @@ uniform float uTime;
 uniform float uSpeed; 
 uniform float udisplacement; // Overall amplitude multiplier
 
-varying float vNoise; // Re-using this to pass wave height to fragment
-varying vec3 vWorldPos; // Pass world position to fragment for wave calculations
+out float vNoise; // Re-using this to pass wave height to fragment
+out vec3 vWorldPos; // Pass world position to fragment for wave calculations
 
 uniform vec4 uWaveA; 
 uniform vec4 uWaveB;

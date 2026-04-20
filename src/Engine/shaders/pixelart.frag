@@ -56,13 +56,17 @@ void main() {
     // 4. ADAPTIVE COLOR LOGIC
     vec3 finalColor = quantizedColor;
 
-    if (normalEdge > uNormalThreshold) {
-        finalColor = quantizedColor * uCreaseDarkening;
-    }
-
-    if (depthEdge > (uDepthThreshold / uEdgeWidth)) {
-        finalColor = quantizedColor * uSilhouetteDarkening;
-    }
+if (depthEdge > (uDepthThreshold / uEdgeWidth)) {
+    finalColor = quantizedColor * uSilhouetteDarkening;
+} 
+// 2. Only check Normal Edge if Depth Edge didn't trigger
+else if (normalEdge > uNormalThreshold) {
+    finalColor = quantizedColor * uCreaseDarkening;
+} 
+// 3. Optional: Fallback to the base quantized color
+else {
+    finalColor = quantizedColor;
+}
 
     gl_FragColor = vec4(finalColor, 1.0);
 }

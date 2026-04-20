@@ -5,6 +5,7 @@ import { MaterialWindow } from './Windows/MaterialWindow.js';
 import { RenderPassWindow } from './Windows/RenderPassWindow.js';
 import { ProfilerWindow } from './Windows/ProfilerWindow.js';
 import { InfoWindow } from './Windows/InfoWindow.js';
+import { WorldWindow } from './Windows/WorldWindow.js';
 
 export class Editor {
     constructor(game) {
@@ -51,6 +52,12 @@ export class Editor {
         this.windows.info = new InfoWindow(this, infoResult.content);
         this.wm.addNavItem('INFO', infoResult.window);
         infoResult.window.style.display = 'none';
+
+        // World Window
+        const worldResult = this.wm.createWindow('World', 680, 440, 260, 220);
+        this.windows.world = new WorldWindow(this, worldResult.content);
+        this.wm.addNavItem('WORLD', worldResult.window);
+        worldResult.window.style.display = 'none';
 
         // Render Output Selector (Viewport)
         // Dynamically get available buffers from ViewportPass
