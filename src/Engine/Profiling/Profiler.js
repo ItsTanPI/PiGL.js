@@ -104,9 +104,7 @@ export class Profiler {
      * @method endFrame
      * @returns {void}
      */
-    endFrame() {
-        console.log();
-        
+    endFrame() {        
         if (!this.enabled) return;
         this.metrics.endTime = performance.now();
         this.metrics.cpuTime = this.metrics.endTime - this.metrics.startTime;

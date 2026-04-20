@@ -552,6 +552,10 @@ const CONTINENT = (function() {
 
   return {
     getValue,
+    setOffsets: (offsetX, offsetY) => {
+      globalState.offsetX = offsetX;
+      globalState.offsetY = offsetY;
+    },
     getState: () => ({...globalState}),
     getLayers: () => [...layers],
     getParamDefaults: () => ({...customParamDefaults}),

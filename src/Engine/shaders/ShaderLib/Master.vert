@@ -60,6 +60,6 @@ void main()
     vec3 offsetFromCamera = pos - uCameraPos;
     float r = (offsetFromCamera.x * offsetFromCamera.x) + (offsetFromCamera.z * offsetFromCamera.z);
     
-    // gl_Position = uProjectionMatrix * uViewMatrix * (vec4(pos, 1.0) + vec4(0.0, r / -4000.0, 0.0, 0.0));
+    gl_Position = uProjectionMatrix * uViewMatrix * (vec4(pos, 1.0) + vec4(0.0, r / -4000.0, 0.0, 0.0));
 
 }

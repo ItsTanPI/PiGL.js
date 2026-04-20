@@ -51,19 +51,19 @@ export class InspectorWindow {
             const folder = this.gui.addFolder(`Transform: ${name}`);
             
             const pos = folder.addFolder('Position');
-            pos.add(t.position, 'x').step(0.1).listen().name('X');
-            pos.add(t.position, 'y').step(0.1).listen().name('Y');
-            pos.add(t.position, 'z').step(0.1).listen().name('Z');
+            pos.add(t.position, 'x').step(0.01).listen().name('X');
+            pos.add(t.position, 'y').step(0.01).listen().name('Y');
+            pos.add(t.position, 'z').step(0.01).listen().name('Z');
             
             const rot = folder.addFolder('Rotation');
-            rot.add(t.rotation, 'x').step(0.1).listen().name('X');
-            rot.add(t.rotation, 'y').step(0.1).listen().name('Y');
-            rot.add(t.rotation, 'z').step(0.1).listen().name('Z');
+            rot.add(t.rotation, 'x').step(0.01).listen().name('X');
+            rot.add(t.rotation, 'y').step(0.01).listen().name('Y');
+            rot.add(t.rotation, 'z').step(0.01).listen().name('Z');
 
             const sca = folder.addFolder('Scale');
-            sca.add(t.scale, 'x').step(0.1).listen().name('X');
-            sca.add(t.scale, 'y').step(0.1).listen().name('Y');
-            sca.add(t.scale, 'z').step(0.1).listen().name('Z');
+            sca.add(t.scale, 'x').step(0.01).listen().name('X');
+            sca.add(t.scale, 'y').step(0.01).listen().name('Y');
+            sca.add(t.scale, 'z').step(0.01).listen().name('Z');
         }
 
         // Camera properties (FOV, Ortho, etc.)

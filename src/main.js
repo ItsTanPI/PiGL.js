@@ -36,6 +36,7 @@ import masterVs from './Engine/shaders/ShaderLib/Master.vert?raw';
 import masterFs from './Engine/shaders/ShaderLib/Master.frag?raw';
 import { HexGridMesh } from './HexGridMesh.js';
 import { LandObjectSpawner } from './LandObjectSpawner.js';
+import CONTINENT from './CustomMapNoise.js';
 
 // #endregion
 
@@ -153,7 +154,7 @@ matPixelArt.setUniforms({
     'uEdgeWidth': 0.5,
     'uColorLevels': 128.0,
     'uDepthThreshold': 0.01,
-    'uNormalThreshold': 0.1,
+    'uNormalThreshold': 0.3,
     'uSilhouetteDarkening': 0.2, // Darker for outer edges
     'uCreaseDarkening': 0.7,     // Lighter for inner corners/color changes
 });
@@ -285,7 +286,7 @@ renderQueue.addPass(viewportPass);
 
 function resizeCanvas() {
     // 1. Physical Canvas size (the display size on screen)
-    canvas.width = window.innerWidth;
+    canvas.width = window.innerWidth ;
     canvas.height = window.innerHeight;
 
     // 2. Calculate the internal "Render Resolution"
@@ -330,7 +331,7 @@ lightCamera.setOrthographic(-size, size, -size, size, 1.0, 100.0);
 // #region Scene Objects Loading
 
 
-var Terrain = new GameObject(renderer, planeTer, new HexGridMesh(gl, 255, 255, 1.0, true), 'Scense');
+let Terrain = new GameObject(renderer, planeTer, new HexGridMesh(gl, 255, 255, 1.0, true), 'Scense');
 Terrain.transform.position.set( -(255 * Math.sqrt(3)/2), -11 , -(255 * 1.5/2));
 Terrain.transform.scale.set(1, 0.4, 1);
 scene.push(Terrain);
@@ -359,7 +360,7 @@ const oceanConfig = {
 };
 
 const floatingSpawnConfig = {
-    enabled: isMobile ? false : true,
+    enabled: isMobile ? true : true,
     count: 50,
     seed: 68,
     bounds: {
@@ -373,6 +374,27 @@ const floatingSpawnConfig = {
 
 let floatingObjects = [];
 let landObjects = [];
+
+function mulberry32(seed) {
+    let t = seed >>> 0;
+    return function() {
+        t += 0x6D2B79F5;
+        let r = Math.imul(t ^ (t >>> 15), 1 | t);
+        r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+        return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+function rebuildTerrain() {
+    if (Terrain) {
+        const idx = scene.indexOf(Terrain);
+        if (idx >= 0) scene.splice(idx, 1);
+    }
+    Terrain = new GameObject(renderer, planeTer, new HexGridMesh(gl, 255, 255, 1.0, true), 'Scense');
+    Terrain.transform.position.set( -(255 * Math.sqrt(3)/2), -11 , -(255 * 1.5/2));
+    Terrain.transform.scale.set(1, 0.4, 1);
+    scene.push(Terrain);
+}
 
 if (floatingSpawnConfig.enabled) {
     floatingSpawner.setSeed(floatingSpawnConfig.seed);
@@ -438,70 +460,68 @@ CenterLOD = centerObj;
 
 
 
-// Promise.all([
-//     ObjLoader.load(gl, './Assets/3D/LOD1.obj'),
-//     ObjLoader.load(gl, './Assets/3D/LOD2.obj'),
-//     ObjLoader.load(gl, './Assets/3D/LOD3.obj')
-// ]).then(([meshLOD1, meshLOD2, meshLOD3]) => {
-//     const offset = 80;
-//     const yPos = -6.5;
-//     const scale = 50;
-//     const radius = 5;
-
-//     meshLOD1 = new HexGridMesh(gl, 255, 255, 1.0)
+Promise.all([
+    ObjLoader.load(gl, './Assets/3D/LOD1.obj'),
+    ObjLoader.load(gl, './Assets/3D/LOD2.obj'),
+    ObjLoader.load(gl, './Assets/3D/LOD3.obj')
+]).then(([meshLOD1, meshLOD2, meshLOD3]) => {
+    const offset = 80;
+    const yPos = -6.5;
+    const scale = 50;
+    const radius = 5;
     
 
-//     // Mobile: LOD2 center, LOD3 everything else
-//     // Desktop: LOD1 center, LOD2 mid ring, LOD3 outer
-//     const LOD1_RADIUS = isMobile ? 1.0 : 0.0;
-//     const LOD2_RADIUS = isMobile ? -1 : -1.0;
+    // Mobile: LOD2 center, LOD3 everything else
+    // Desktop: LOD1 center, LOD2 mid ring, LOD3 outer
+    const LOD1_RADIUS = isMobile ? 1.0 : 0.0;
+    const LOD2_RADIUS = isMobile ? -1 : -1.0;
 
-//     const centerMesh = isMobile ? meshLOD2 : meshLOD1;
-//     const centerLabel = isMobile ? 'LOD2' : 'LOD1';
+    const centerMesh = isMobile ? meshLOD2 : meshLOD1;
+    const centerLabel = isMobile ? 'LOD2' : 'LOD1';
 
-//     // Center water mesh
-//     const centerObj = new GameObject(renderer, matWater, centerMesh, `Water Floor [0,0] ${centerLabel}`);
-//     centerObj.transform.position.set(-(255 * Math.sqrt(3)/2), yPos-0.5, -(255 * 1.5/2));
-//     centerObj.transform.scale.set(1, 1, 1);
-//     scene.push(centerObj);
-//     CenterLOD = centerObj;
+    // Center water mesh
+    const centerObj = new GameObject(renderer, matWater, centerMesh, `Water Floor [0,0] ${centerLabel}`);
+    centerObj.transform.position.set(-(255 * Math.sqrt(3)/2), yPos-0.5, -(255 * 1.5/2));
+    centerObj.transform.scale.set(1, 1, 1);
+    scene.push(centerObj);
+    CenterLOD = centerObj;
 
-//     if (isMobile) {
-//         // Triangle/FOV shape for mobile
-//         for (let z = 0; z <= radius; z++) {
-//             for (let x = -z; x <= z; x++) {
-//                 if (x === 0 && z === 0) continue;
+    if (isMobile) {
+        // Triangle/FOV shape for mobile
+        for (let z = 0; z <= radius; z++) {
+            for (let x = -z; x <= z; x++) {
+                if (x === 0 && z === 0) continue;
 
-//                 const obj = new GameObject(renderer, matWater, meshLOD3, `Water Floor [${x},${z}] LOD3`);
-//                 centerObj.transform.add(obj.transform);
-//                 obj.transform.setGlobalPosition(x * offset, yPos-0.5, z * offset);
-//                 obj.transform.scale.set(scale, scale, scale);
+                const obj = new GameObject(renderer, matWater, meshLOD3, `Water Floor [${x},${z}] LOD3`);
+                centerObj.transform.add(obj.transform);
+                obj.transform.setGlobalPosition(x * offset, yPos-0.5, z * offset);
+                obj.transform.scale.set(scale, scale, scale);
 
-//             }
-//         }
-//     } else {
-//         // Full grid for desktop
-//         for (let x = -radius; x <= radius; x++) {
-//             for (let z = -radius; z <= radius; z++) {
-//                 if (x === 0 && z === 0) continue;
+            }
+        }
+    } else {
+        // Full grid for desktop
+        for (let x = -radius; x <= radius; x++) {
+            for (let z = -radius; z <= radius; z++) {
+                if (x === 0 && z === 0) continue;
 
-//                 const dist = Math.sqrt(x * x + z * z);
-//                 const mesh = dist <= LOD1_RADIUS ? meshLOD1 
-//                     : dist <= LOD2_RADIUS ? meshLOD2 
-//                     : meshLOD3;
-//                 const lodLevel = dist <= LOD1_RADIUS ? 1 
-//                     : dist <= LOD2_RADIUS ? 2 
-//                     : 3;
+                const dist = Math.sqrt(x * x + z * z);
+                const mesh = dist <= LOD1_RADIUS ? meshLOD1 
+                    : dist <= LOD2_RADIUS ? meshLOD2 
+                    : meshLOD3;
+                const lodLevel = dist <= LOD1_RADIUS ? 1 
+                    : dist <= LOD2_RADIUS ? 2 
+                    : 3;
 
-//                 const obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}] LOD${lodLevel}`);
-//                 centerObj.transform.add(obj.transform);
-//                 obj.transform.setGlobalPosition(x * offset, yPos, z * offset);
-//                 obj.transform.scale.set(scale, scale, scale);
+                const obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}] LOD${lodLevel}`);
+                centerObj.transform.add(obj.transform);
+                obj.transform.setGlobalPosition(x * offset, yPos, z * offset);
+                obj.transform.scale.set(scale, scale, scale);
 
-//             }
-//         }
-//     }
-// });
+            }
+        }
+    }
+});
 
 // #endregion
 
@@ -564,23 +584,34 @@ game.spawnLandObjects = async (count) => {
 };
 
 // Seed-based spawning control
-game.respawnWithSeed = async (seed) => {
-    // Keep only non-floating objects (water LOD tiles)
-    // Filter out anything with "[Floating]" in the name
-    const waterObjects = scene.filter(obj => !obj.name || !obj.name.includes('[Floating]'));
+game.respawnWithSeed = (seed) => {
+    // Keep only non-random objects (water LOD tiles, terrain, etc.)
+    // Filter out anything with "[Floating]" or "[Land]" in the name
+    const staticObjects = scene.filter(
+        obj => !obj.name || (!obj.name.includes('[Floating]') && !obj.name.includes('[Land]'))
+    );
     scene.length = 0;
-    scene.push(...waterObjects);
+    scene.push(...staticObjects);
+    floatingObjects = [];
+    landObjects = [];
     
     // Set new seed and spawn
     floatingSpawner.setSeed(seed);
     landSpawner.setSeed(seed);
     floatingSpawnConfig.seed = seed;
-    const spawned = await floatingSpawner.spawnMany(
+    const rand = mulberry32(seed);
+    const offsetRange = 32000;
+    const offsetX = (rand() - 0.5) * offsetRange;
+    const offsetY = (rand() - 0.5) * offsetRange;
+    CONTINENT.setOffsets(offsetX, offsetY);
+    rebuildTerrain();
+    const spawned = floatingSpawner.spawnMany(
         floatingSpawnConfig.count,
         floatingSpawnConfig.bounds,
         floatingSpawnConfig.yFixed
     );
-    landObjects = await landSpawner.spawnMany(
+    floatingObjects = spawned;
+    landObjects = landSpawner.spawnMany(
         120,
         floatingSpawnConfig.bounds,
         -11.0
@@ -591,11 +622,12 @@ game.respawnWithSeed = async (seed) => {
 
 let profiler = null;
 
-if (!isMobile) {
-    const editor = new Editor(game);
-    profiler = ProfilerInstrumenter.attach(renderQueue, renderer, game);
-    game.profiler = profiler;
-}
+    if (!isMobile) {
+        const editor = new Editor(game);
+        game.editor = editor;
+        profiler = ProfilerInstrumenter.attach(renderQueue, renderer, game);
+        game.profiler = profiler;
+    }
 
 // Expose game object globally for console access
 window.game = game;
@@ -607,14 +639,38 @@ window.landObjects = landObjects;
 window.floatingSpawnConfig = floatingSpawnConfig;
 
 const cameraController = new CameraController(camera, canvas);
+game.cameraController = cameraController;
 
 // #endregion
 
 // #region Input & Debugging
 
 window.addEventListener('keydown', (e) => {
-    if (e.key.toLowerCase() === 't') {
+    const k = e.key.toLowerCase();
+    if (k === 't') {
         wireframePass.toggle();
+    }
+    if (k === 'r') {
+        const randomSeed = Math.floor(Math.random() * 1000000);
+        // Trigger respawn with random seed
+        if (typeof game.respawnWithSeed === 'function') {
+            game.respawnWithSeed(randomSeed);
+        }
+
+        // If editor WorldWindow is available, update its displayed seed
+        try {
+            if (game.editor && game.editor.windows && game.editor.windows.world) {
+                const ww = game.editor.windows.world;
+                if (ww && ww.state) {
+                    ww.state.seed = randomSeed;
+                    if (ww.seedController && typeof ww.seedController.updateDisplay === 'function') {
+                        ww.seedController.updateDisplay();
+                    }
+                }
+            }
+        } catch (err) {
+            console.warn('Failed to update WorldWindow seed UI', err);
+        }
     }
 });
 

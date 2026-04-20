@@ -39,7 +39,7 @@ export class LandObjectSpawner {
         const rocksThreshold = (rawValue) => rawValue > 0.5;  // Rocks on higher land (noise > 0.5)
         const rocksThresholdIsland = (rawValue) => rawValue <= 0.2;  // Rocks on higher land (noise > 0.5)
 
-        const structureThreshold = (rawValue) => rawValue >= 0.42 && rawValue <= 0.45;  // Structures on land (noise > 0.45)
+        const structureThreshold = (rawValue) => rawValue >= 0.43 && rawValue <= 0.45;  // Structures on land (noise > 0.45)
         const defaultThreshold = (rawValue) => rawValue > this.threshold;  // Default land threshold
 
         // Catalog in FloatingObjectSpawner-style with weighted probabilities.
@@ -77,12 +77,12 @@ export class LandObjectSpawner {
 
             // Structures - spawn on land > 0.45
             { file: 'platform-planks.obj', name: 'Platform Planks', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.07, thresholdCallback: defaultThreshold },
-            { file: 'ship-wreck.obj', name: 'Ship Wreck', rotationMode: 'y-only', scale: 1.0, yOffset: -1.0, probability: 0.01, thresholdCallback: structureThreshold },
-            { file: 'tower-complete-small.obj', name: 'Tower Complete Small', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.03, thresholdCallback: structureThreshold },
-            { file: 'tower-complete-large.obj', name: 'Tower Complete Large', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.03, thresholdCallback: structureThreshold },
+            { file: 'ship-wreck.obj', name: 'Ship Wreck', rotationMode: '3d', scale: 1.0, yOffset: -1.0, probability: 0.1, thresholdCallback: structureThreshold },
+            { file: 'tower-complete-small.obj', name: 'Tower Complete Small', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.06, thresholdCallback: structureThreshold },
+            { file: 'tower-complete-large.obj', name: 'Tower Complete Large', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.06, thresholdCallback: structureThreshold },
             { file: 'structure-roof.obj', name: 'Structure Roof', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.1, thresholdCallback: defaultThreshold },
             { file: 'cannon-mobile.obj', name: 'Cannon Mobile', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.05, thresholdCallback: defaultThreshold },
-            { file: 'house.obj', name: 'House', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.1, thresholdCallback: defaultThreshold },
+            { file: 'house.obj', name: 'House', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.06, thresholdCallback: defaultThreshold },
 
 
             // Misc
@@ -181,9 +181,9 @@ export class LandObjectSpawner {
         // Fast path for full 3D
         if (tokens.includes('3d') || tokens.includes('all') || tokens.includes('x-y-z') || tokens.includes('xyz')) {
             return {
-                x: this.seededRandom() * Math.PI * 2,
+                x: this.seededRandom() * Math.PI * 0.15,
                 y: this.seededRandom() * Math.PI * 2,
-                z: this.seededRandom() * Math.PI * 2
+                z: this.seededRandom() * Math.PI * 0.15
             };
         }
 
