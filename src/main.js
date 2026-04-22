@@ -460,68 +460,68 @@ CenterLOD = centerObj;
 
 
 
-Promise.all([
-    ObjLoader.load(gl, './Assets/3D/LOD1.obj'),
-    ObjLoader.load(gl, './Assets/3D/LOD2.obj'),
-    ObjLoader.load(gl, './Assets/3D/LOD3.obj')
-]).then(([meshLOD1, meshLOD2, meshLOD3]) => {
-    const offset = 80;
-    const yPos = -6.5;
-    const scale = 50;
-    const radius = 5;
+// Promise.all([
+//     ObjLoader.load(gl, './Assets/3D/LOD1.obj'),
+//     ObjLoader.load(gl, './Assets/3D/LOD2.obj'),
+//     ObjLoader.load(gl, './Assets/3D/LOD3.obj')
+// ]).then(([meshLOD1, meshLOD2, meshLOD3]) => {
+//     const offset = 80;
+//     const yPos = -6.5;
+//     const scale = 50;
+//     const radius = 5;
     
 
-    // Mobile: LOD2 center, LOD3 everything else
-    // Desktop: LOD1 center, LOD2 mid ring, LOD3 outer
-    const LOD1_RADIUS = isMobile ? 1.0 : 0.0;
-    const LOD2_RADIUS = isMobile ? -1 : -1.0;
+//     // Mobile: LOD2 center, LOD3 everything else
+//     // Desktop: LOD1 center, LOD2 mid ring, LOD3 outer
+//     const LOD1_RADIUS = isMobile ? 1.0 : 0.0;
+//     const LOD2_RADIUS = isMobile ? -1 : -1.0;
 
-    const centerMesh = isMobile ? meshLOD2 : meshLOD1;
-    const centerLabel = isMobile ? 'LOD2' : 'LOD1';
+//     const centerMesh = isMobile ? meshLOD2 : meshLOD1;
+//     const centerLabel = isMobile ? 'LOD2' : 'LOD1';
 
-    // Center water mesh
-    const centerObj = new GameObject(renderer, matWater, centerMesh, `Water Floor [0,0] ${centerLabel}`);
-    centerObj.transform.position.set(-(255 * Math.sqrt(3)/2), yPos-0.5, -(255 * 1.5/2));
-    centerObj.transform.scale.set(1, 1, 1);
-    scene.push(centerObj);
-    CenterLOD = centerObj;
+//     // Center water mesh
+//     const centerObj = new GameObject(renderer, matWater, centerMesh, `Water Floor [0,0] ${centerLabel}`);
+//     centerObj.transform.position.set(-(255 * Math.sqrt(3)/2), yPos-0.5, -(255 * 1.5/2));
+//     centerObj.transform.scale.set(1, 1, 1);
+//     scene.push(centerObj);
+//     CenterLOD = centerObj;
 
-    if (isMobile) {
-        // Triangle/FOV shape for mobile
-        for (let z = 0; z <= radius; z++) {
-            for (let x = -z; x <= z; x++) {
-                if (x === 0 && z === 0) continue;
+//     if (isMobile) {
+//         // Triangle/FOV shape for mobile
+//         for (let z = 0; z <= radius; z++) {
+//             for (let x = -z; x <= z; x++) {
+//                 if (x === 0 && z === 0) continue;
 
-                const obj = new GameObject(renderer, matWater, meshLOD3, `Water Floor [${x},${z}] LOD3`);
-                centerObj.transform.add(obj.transform);
-                obj.transform.setGlobalPosition(x * offset, yPos-0.5, z * offset);
-                obj.transform.scale.set(scale, scale, scale);
+//                 const obj = new GameObject(renderer, matWater, meshLOD3, `Water Floor [${x},${z}] LOD3`);
+//                 centerObj.transform.add(obj.transform);
+//                 obj.transform.setGlobalPosition(x * offset, yPos-0.5, z * offset);
+//                 obj.transform.scale.set(scale, scale, scale);
 
-            }
-        }
-    } else {
-        // Full grid for desktop
-        for (let x = -radius; x <= radius; x++) {
-            for (let z = -radius; z <= radius; z++) {
-                if (x === 0 && z === 0) continue;
+//             }
+//         }
+//     } else {
+//         // Full grid for desktop
+//         for (let x = -radius; x <= radius; x++) {
+//             for (let z = -radius; z <= radius; z++) {
+//                 if (x === 0 && z === 0) continue;
 
-                const dist = Math.sqrt(x * x + z * z);
-                const mesh = dist <= LOD1_RADIUS ? meshLOD1 
-                    : dist <= LOD2_RADIUS ? meshLOD2 
-                    : meshLOD3;
-                const lodLevel = dist <= LOD1_RADIUS ? 1 
-                    : dist <= LOD2_RADIUS ? 2 
-                    : 3;
+//                 const dist = Math.sqrt(x * x + z * z);
+//                 const mesh = dist <= LOD1_RADIUS ? meshLOD1 
+//                     : dist <= LOD2_RADIUS ? meshLOD2 
+//                     : meshLOD3;
+//                 const lodLevel = dist <= LOD1_RADIUS ? 1 
+//                     : dist <= LOD2_RADIUS ? 2 
+//                     : 3;
 
-                const obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}] LOD${lodLevel}`);
-                centerObj.transform.add(obj.transform);
-                obj.transform.setGlobalPosition(x * offset, yPos, z * offset);
-                obj.transform.scale.set(scale, scale, scale);
+//                 const obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}] LOD${lodLevel}`);
+//                 centerObj.transform.add(obj.transform);
+//                 obj.transform.setGlobalPosition(x * offset, yPos, z * offset);
+//                 obj.transform.scale.set(scale, scale, scale);
 
-            }
-        }
-    }
-});
+//             }
+//         }
+//     }
+// });
 
 // #endregion
 

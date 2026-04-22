@@ -507,45 +507,124 @@ if (typeof module !== 'undefined' && module.exports) {
 // CUSTOM INJECTED FUNCTIONS
 // ============================================================================
 
+  /**
+   * Custom injected function: FallOffNoise
+   */
+  function FallOffNoise(x, y, z, seed, params = {
+  centerX: 250,
+  centerY: 250,
+  radius: 100,
+  jaggedness: 0.5,
+  seed: 0,
+  power: 2,
+  steepness: 1
+}) {
+
+  const centerX = params.centerX ?? 250;
+  const centerY = params.centerY ?? 250;
+  const radius = params.radius ?? 100;
+  const jaggedness = params.jaggedness ?? 0.5;
+  const s = params.seed ?? seed;
+  
+  const power = params.power ?? 2;
+  const steepness = params.steepness ?? 1;
+
+  const dx = x - centerX;
+  const dy = y - centerY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const angle = Math.atan2(dy, dx);
+  
+  const warp = Math.sin(angle * 4 + s) * 0.5 + 
+               Math.sin(angle * 7 - s * 2) * 0.3 + 
+               Math.sin(angle * 12 + s * 0.5) * 0.2;
+               
+  const organicRadius = radius * (1 + warp * jaggedness);
+  
+  let d = Math.min(1, distance / organicRadius);
+  
+  let falloff = Math.pow(1 - Math.pow(d, steepness), power);
+  
+  return falloff;
+}
+
+
+// ============================================================================
+// CUSTOM BLEND FUNCTIONS
+// ============================================================================
+
+  /**
+   * Custom blend function: StrengthBased
+   */
+  function StrengthBased(base, layer, ctx) {
+  const strength = 1.0; 
+  let v = layer * base;
+  v = v * (1 + strength * base);
+  return Math.max(0, Math.min(1, v));
+}
+
 
 // ============================================================================
 // CONFIGURATION & RENDERING ENGINE (OPTIMIZED)
 // ============================================================================
 
 const CONTINENT = (function() {
-  const globalState = {"res":4,"color":"custom_1776181641920","offsetX":190.0,"offsetY":-110.0,"zoom":1.753256159054796};
-  const layers = [{"id":3,"type":"perlin","scale":400,"octaves":3,"falloff":0.5,"seed":0,"weight":1,"contrast":2.7,"threshold":0,"z":0,"offsetX":0,"offsetY":0,"blend":"avg","visible":true,"collapsed":true,"paramsMeta":{"scale":{"type":"range","min":10,"max":500,"step":1},"octaves":{"type":"number","min":1,"max":8,"step":0.01},"falloff":{"type":"number","step":0.01},"contrast":{"type":"number","step":0.01},"threshold":{"type":"number","step":0.01}},"params":{"scale":400,"octaves":3,"falloff":0.5,"contrast":5,"threshold":0},"fixedMeta":{"offsetX":{"type":"number","step":0.01},"offsetY":{"type":"number","step":0.01},"z":{"type":"number","step":0.01},"seed":{"type":"range","min":0,"max":9999,"step":1}}},{"id":4,"type":"voronoi_edge","seed":0,"z":0,"offsetX":0,"offsetY":0,"blend":"mul","visible":true,"collapsed":true,"params":{"scale":500,"angle":0,"contrast":1,"threshold":0},"paramsMeta":{"scale":{"type":"number"},"angle":{"type":"number"},"contrast":{"type":"number"},"threshold":{"type":"number"}},"fixedMeta":{},"scale":60},{"id":5,"type":"domain_warp","seed":0,"z":0,"offsetX":0,"offsetY":0,"blend":"mul","visible":true,"collapsed":false,"params":{"scale":60,"octaves":4,"falloff":0.5,"warpStrength":0.8,"contrast":1,"threshold":0},"paramsMeta":{"scale":{"type":"number"},"octaves":{"type":"number"},"falloff":{"type":"number"},"warpStrength":{"type":"number"},"contrast":{"type":"number"},"threshold":{"type":"number"}},"fixedMeta":{},"scale":60}];
-  const customParamDefaults = {"FBMPerlin":{"scale":60,"contrast":1,"threshold":0,"octaves":6,"lacunarity":2,"persistence":0.5}};
-  const customParamMeta = {"FBMPerlin":{"scale":{"type":"number"},"contrast":{"type":"number"},"threshold":{"type":"number"},"octaves":{"type":"number"},"lacunarity":{"type":"number"},"persistence":{"type":"number"}}};
+  const globalState = {"res":4,"color":"terrain","offsetX":-220,"offsetY":-190,"zoom":1};
+  const layers = [{"id":1,"type":"perlin","scale":400,"octaves":3,"falloff":0.5,"seed":0,"weight":1,"contrast":2.7,"threshold":0,"z":0,"offsetX":0,"offsetY":0,"blend":"avg","visible":true,"collapsed":true,"paramsMeta":{"scale":{"type":"range","min":10,"max":500,"step":1},"octaves":{"type":"number","min":1,"max":8,"step":0.01},"falloff":{"type":"number","step":0.01},"contrast":{"type":"number","step":0.01},"threshold":{"type":"number","step":0.01}},"params":{"scale":400,"octaves":3,"falloff":0.5,"contrast":1,"threshold":0},"fixedMeta":{"offsetX":{"type":"number","step":0.01},"offsetY":{"type":"number","step":0.01},"z":{"type":"number","step":0.01},"seed":{"type":"range","min":0,"max":9999,"step":1}}},{"id":2,"type":"domain_warp","seed":0,"z":0,"offsetX":0,"offsetY":0,"blend":"avg","visible":true,"collapsed":true,"params":{"scale":60,"octaves":4,"falloff":0.5,"warpStrength":0.8,"contrast":1,"threshold":0},"paramsMeta":{"scale":{"type":"number"},"octaves":{"type":"number"},"falloff":{"type":"number"},"warpStrength":{"type":"number"},"contrast":{"type":"number"},"threshold":{"type":"number"}},"fixedMeta":{},"scale":60},{"id":3,"type":"FallOffNoise","seed":0,"z":-0.03,"offsetX":0,"offsetY":0,"blend":"StrengthBased","visible":true,"collapsed":true,"params":{"centerX":0,"centerY":0,"radius":800.05,"jaggedness":0.2,"seed":19.9,"power":2,"steepness":0.65,"scale":60},"paramsMeta":{"centerX":{"type":"range","min":-10000,"max":10000,"step":0.01},"centerY":{"type":"range","min":-10000,"max":10000,"step":0.01},"radius":{"type":"number","step":0.01},"jaggedness":{"type":"number","step":0.01},"seed":{"type":"number","step":0.01},"power":{"type":"number","step":0.01},"steepness":{"type":"number","step":0.01},"scale":{"type":"number","step":0.01}},"fixedMeta":{"offsetX":{"type":"number","step":0.01},"offsetY":{"type":"number","step":0.01},"z":{"type":"number","step":0.01},"seed":{"type":"number","step":0.01}},"scale":60}];
+  const customParamDefaults = {"singleCellNoise":{"centerX":240,"centerY":180,"radius":60,"thickness":0.1,"contrast":1},"customNoise":{"centerX":250,"centerY":250,"radius":100,"fuzziness":0.8},"FallOffNoise":{"centerX":250,"centerY":250,"radius":100,"jaggedness":0.5,"seed":0,"power":2,"steepness":1},"FBMPerlin":{"scale":60,"contrast":1,"threshold":0,"octaves":6,"lacunarity":2,"persistence":0.5}};
+  const customParamMeta = {"FBMPerlin":{"scale":{"type":"number"},"contrast":{"type":"number"},"threshold":{"type":"number"},"octaves":{"type":"number"},"lacunarity":{"type":"number"},"persistence":{"type":"number"}},"singleCellNoise":{"centerX":{"type":"number"},"centerY":{"type":"number"},"radius":{"type":"number"},"thickness":{"type":"number"},"contrast":{"type":"number"}},"customNoise":{"centerX":{"type":"number"},"centerY":{"type":"number"},"radius":{"type":"number"},"fuzziness":{"type":"number"}},"FallOffNoise":{"centerX":{"type":"number"},"centerY":{"type":"number"},"radius":{"type":"number"},"jaggedness":{"type":"number"},"seed":{"type":"number"},"power":{"type":"number"},"steepness":{"type":"number"}}};
 
   const customFunctions = {
+    'FallOffNoise': FallOffNoise,
 
   };
+
+  const blendFns = {
+    avg: (a, b) => (a + b) / 2,
+    add: (a, b) => Math.min(1, a + b),
+    mul: (a, b) => a * b,
+    max: (a, b) => Math.max(a, b),
+    min: (a, b) => Math.min(a, b),
+    diff: (a, b) => Math.abs(a - b),
+    'StrengthBased': StrengthBased,
+
+  };
+
+  function clamp01(v) {
+    if (!Number.isFinite(v)) return 0;
+    return v < 0 ? 0 : v > 1 ? 1 : v;
+  }
+
+  function applyBlend(base, layerValue, blend, ctx) {
+    const fn = blendFns[blend];
+    if (!fn) return base;
+    const v = fn(base, layerValue, ctx);
+    return clamp01(+v);
+  }
 
   function getValue(x, y, z = 0) {
     let final = 0;
 
-    const params0 = {"scale":400,"octaves":3,"falloff":0.5,"contrast":5,"threshold":0};
+    const params0 = {"scale":400,"octaves":3,"falloff":0.5,"contrast":1,"threshold":0};
     const noiseFn0 = customFunctions['perlin'] || NoiseLib.getNoiseFunction('perlin');
     const nx0 = (x + globalState.offsetX) * globalState.zoom + 0;
     const ny0 = (y + globalState.offsetY) * globalState.zoom + 0;
     let n0 = noiseFn0(nx0, ny0, z + 0, 0, params0);
     n0 = n0 < 0 ? 0 : n0 > 1 ? 1 : n0;
     final = n0;
-    const params1 = {"scale":500,"angle":0,"contrast":1,"threshold":0};
-    const noiseFn1 = customFunctions['voronoi_edge'] || NoiseLib.getNoiseFunction('voronoi_edge');
+    const params1 = {"scale":60,"octaves":4,"falloff":0.5,"warpStrength":0.7,"contrast":1,"threshold":0};
+    const noiseFn1 = customFunctions['domain_warp'] || NoiseLib.getNoiseFunction('domain_warp');
     const nx1 = (x + globalState.offsetX) * globalState.zoom + 0;
     const ny1 = (y + globalState.offsetY) * globalState.zoom + 0;
     let n1 = noiseFn1(nx1, ny1, z + 0, 0, params1);
     n1 = n1 < 0 ? 0 : n1 > 1 ? 1 : n1;
-    final *= n1;
-    const params2 = {"scale":60,"octaves":4,"falloff":0.5,"warpStrength":0.8,"contrast":1,"threshold":0};
-    const noiseFn2 = customFunctions['domain_warp'] || NoiseLib.getNoiseFunction('domain_warp');
+    final = applyBlend(final, n1, 'avg', { layerIndex: 1 });
+    const params2 = {"centerX":(220 + globalState.offsetX ) * globalState.zoom,"centerY":(190 + globalState.offsetY)  * globalState.zoom,"radius": 200,"jaggedness":0.2,"seed":(Math.random() * 10000)/10000,"power":5,"steepness":1.5,"scale":60};
+    const noiseFn2 = customFunctions['FallOffNoise'] || NoiseLib.getNoiseFunction('FallOffNoise');
     const nx2 = (x + globalState.offsetX) * globalState.zoom + 0;
     const ny2 = (y + globalState.offsetY) * globalState.zoom + 0;
-    let n2 = noiseFn2(nx2, ny2, z + 0, 0, params2);
+    let n2 = noiseFn2(nx2, ny2, z + -0.03, 0, params2);
     n2 = n2 < 0 ? 0 : n2 > 1 ? 1 : n2;
-    final *= n2;
+    final = applyBlend(final, n2, 'StrengthBased', { layerIndex: 2 });
     if (globalState.invert) final = 1 - final;
     return final;
   }
