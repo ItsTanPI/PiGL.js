@@ -508,6 +508,117 @@ if (typeof module !== 'undefined' && module.exports) {
 // ============================================================================
 
   /**
+   * Custom injected function: FBMPerlin
+   */
+  function FBMPerlin(x, y, z, seed, params = {
+  scale: 60,
+  contrast: 1,
+  threshold: 0,
+  octaves: 6,
+  lacunarity: 2.0,
+  persistence: 0.5,
+}) {
+  const scale       = params.scale       ?? 60;
+  const contrast    = params.contrast    ?? 1;
+  const threshold   = params.threshold   ?? 0;
+  const octaves     = params.octaves     ?? 6;
+  const lacunarity  = params.lacunarity  ?? 2.0;
+  const persistence = params.persistence ?? 0.5;
+
+  // --- Helpers ---
+
+  function fade(t) {
+    return t * t * t * (t * (t * 6 - 15) + 10);
+  }
+
+  function lerp(a, b, t) {
+    return a + t * (b - a);
+  }
+
+  function grad(hash, gx, gy, gz) {
+    const h = hash & 15;
+    const u = h < 8 ? gx : gy;
+    const v = h < 4 ? gy : (h === 12 || h === 14 ? gx : gz);
+    return ((h & 1) ? -u : u) + ((h & 2) ? -v : v);
+  }
+
+  function buildPerm(s) {
+    // LCG shuffle seeded by 's'
+    const p = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) p[i] = i;
+    let rng = (s >>> 0) || 1;
+    for (let i = 255; i > 0; i--) {
+      rng = (rng * 1664525 + 1013904223) >>> 0;
+      const j = rng % (i + 1);
+      [p[i], p[j]] = [p[j], p[i]];
+    }
+    return p;
+  }
+
+  function perlin(px, py, pz, perm) {
+    const X = Math.floor(px) & 255;
+    const Y = Math.floor(py) & 255;
+    const Z = Math.floor(pz) & 255;
+
+    const dx = px - Math.floor(px);
+    const dy = py - Math.floor(py);
+    const dz = pz - Math.floor(pz);
+
+    const u = fade(dx), v = fade(dy), w = fade(dz);
+
+    const p = (i) => perm[i & 255];
+
+    const A  = p(X) + Y,     AA = p(A) + Z, AB = p(A + 1) + Z;
+    const B  = p(X + 1) + Y, BA = p(B) + Z, BB = p(B + 1) + Z;
+
+    return lerp(
+      lerp(
+        lerp(grad(p(AA),     dx,     dy,     dz    ),
+             grad(p(BA),     dx - 1, dy,     dz    ), u),
+        lerp(grad(p(AB),     dx,     dy - 1, dz    ),
+             grad(p(BB),     dx - 1, dy - 1, dz    ), u), v),
+      lerp(
+        lerp(grad(p(AA + 1), dx,     dy,     dz - 1),
+             grad(p(BA + 1), dx - 1, dy,     dz - 1), u),
+        lerp(grad(p(AB + 1), dx,     dy - 1, dz - 1),
+             grad(p(BB + 1), dx - 1, dy - 1, dz - 1), u), v), w);
+  }
+
+  // --- FBM ---
+
+  const perm = buildPerm(seed);
+
+  let value     = 0;
+  let amplitude = 1;
+  let frequency = 1;
+  let maxValue  = 0;
+
+  for (let i = 0; i < octaves; i++) {
+    value    += perlin(
+      x / scale * frequency,
+      y / scale * frequency,
+      z        * frequency,
+      perm
+    ) * amplitude;
+
+    maxValue  += amplitude;
+    amplitude *= persistence;
+    frequency *= lacunarity;
+  }
+
+  // Normalize to [0, 1]
+  let n = (value / maxValue + 1) / 2;
+
+  // Apply contrast (pivot at 0.5)
+  n = (n - 0.5) * contrast + 0.5;
+
+  // Apply threshold
+  n = Math.max(0, n - threshold) / (1 - threshold);
+
+  return Math.min(1, Math.max(0, n));
+}
+
+  /**
    * Custom injected function: FallOffNoise
    */
   function FallOffNoise(x, y, z, seed, params = {
@@ -568,12 +679,13 @@ if (typeof module !== 'undefined' && module.exports) {
 // ============================================================================
 
 const CONTINENT = (function() {
-  const globalState = {"res":4,"color":"terrain","offsetX":-220,"offsetY":-190,"zoom":1};
-  const layers = [{"id":1,"type":"perlin","scale":400,"octaves":3,"falloff":0.5,"seed":0,"weight":1,"contrast":2.7,"threshold":0,"z":0,"offsetX":0,"offsetY":0,"blend":"avg","visible":true,"collapsed":true,"paramsMeta":{"scale":{"type":"range","min":10,"max":500,"step":1},"octaves":{"type":"number","min":1,"max":8,"step":0.01},"falloff":{"type":"number","step":0.01},"contrast":{"type":"number","step":0.01},"threshold":{"type":"number","step":0.01}},"params":{"scale":400,"octaves":3,"falloff":0.5,"contrast":1,"threshold":0},"fixedMeta":{"offsetX":{"type":"number","step":0.01},"offsetY":{"type":"number","step":0.01},"z":{"type":"number","step":0.01},"seed":{"type":"range","min":0,"max":9999,"step":1}}},{"id":2,"type":"domain_warp","seed":0,"z":0,"offsetX":0,"offsetY":0,"blend":"avg","visible":true,"collapsed":true,"params":{"scale":60,"octaves":4,"falloff":0.5,"warpStrength":0.8,"contrast":1,"threshold":0},"paramsMeta":{"scale":{"type":"number"},"octaves":{"type":"number"},"falloff":{"type":"number"},"warpStrength":{"type":"number"},"contrast":{"type":"number"},"threshold":{"type":"number"}},"fixedMeta":{},"scale":60},{"id":3,"type":"FallOffNoise","seed":0,"z":-0.03,"offsetX":0,"offsetY":0,"blend":"StrengthBased","visible":true,"collapsed":true,"params":{"centerX":0,"centerY":0,"radius":800.05,"jaggedness":0.2,"seed":19.9,"power":2,"steepness":0.65,"scale":60},"paramsMeta":{"centerX":{"type":"range","min":-10000,"max":10000,"step":0.01},"centerY":{"type":"range","min":-10000,"max":10000,"step":0.01},"radius":{"type":"number","step":0.01},"jaggedness":{"type":"number","step":0.01},"seed":{"type":"number","step":0.01},"power":{"type":"number","step":0.01},"steepness":{"type":"number","step":0.01},"scale":{"type":"number","step":0.01}},"fixedMeta":{"offsetX":{"type":"number","step":0.01},"offsetY":{"type":"number","step":0.01},"z":{"type":"number","step":0.01},"seed":{"type":"number","step":0.01}},"scale":60}];
+  const globalState = {"res":4,"color":"terrain","offsetX":-220,"offsetY":-190,"zoom":1.5};
+  const layers = [{"id":1,"type":"FBMPerlin","scale":400,"octaves":3,"falloff":0.5,"seed":0,"weight":1,"contrast":2.7,"threshold":0,"z":0,"offsetX":0,"offsetY":0,"blend":"StrengthBased","visible":true,"collapsed":false,"paramsMeta":{"scale":{"type":"number"},"octaves":{"type":"number"},"falloff":{"type":"number"},"contrast":{"type":"number"},"threshold":{"type":"number"},"lacunarity":{"type":"number"},"persistence":{"type":"number"}},"params":{"scale":600,"octaves":3,"falloff":0.5,"contrast":0.8,"threshold":0,"lacunarity":2,"persistence":5},"fixedMeta":{"offsetX":{"type":"number","step":0.01},"offsetY":{"type":"number","step":0.01},"z":{"type":"number","step":0.01},"seed":{"type":"range","min":0,"max":9999,"step":1}}},{"id":2,"type":"domain_warp","seed":0,"z":0,"offsetX":0,"offsetY":0,"blend":"StrengthBased","visible":true,"collapsed":false,"params":{"scale":60,"octaves":4,"falloff":0.5,"warpStrength":0.8,"contrast":0.8,"threshold":0},"paramsMeta":{"scale":{"type":"number"},"octaves":{"type":"number"},"falloff":{"type":"number"},"warpStrength":{"type":"number"},"contrast":{"type":"number"},"threshold":{"type":"number"}},"fixedMeta":{},"scale":60},{"id":3,"type":"FallOffNoise","seed":0,"z":-0.03,"offsetX":0,"offsetY":0,"blend":"StrengthBased","visible":true,"collapsed":false,"params":{"centerX":0,"centerY":0,"radius":800,"jaggedness":0.2,"seed":19.9,"power":5,"steepness":1.5,"scale":60},"paramsMeta":{"centerX":{"type":"range","min":-10000,"max":10000,"step":0.01},"centerY":{"type":"range","min":-10000,"max":10000,"step":0.01},"radius":{"type":"number","step":0.01},"jaggedness":{"type":"number","step":0.01},"seed":{"type":"number","step":0.01},"power":{"type":"number","step":0.01},"steepness":{"type":"number","step":0.01},"scale":{"type":"number","step":0.01}},"fixedMeta":{"offsetX":{"type":"number","step":0.01},"offsetY":{"type":"number","step":0.01},"z":{"type":"number","step":0.01},"seed":{"type":"number","step":0.01}},"scale":60}];
   const customParamDefaults = {"singleCellNoise":{"centerX":240,"centerY":180,"radius":60,"thickness":0.1,"contrast":1},"customNoise":{"centerX":250,"centerY":250,"radius":100,"fuzziness":0.8},"FallOffNoise":{"centerX":250,"centerY":250,"radius":100,"jaggedness":0.5,"seed":0,"power":2,"steepness":1},"FBMPerlin":{"scale":60,"contrast":1,"threshold":0,"octaves":6,"lacunarity":2,"persistence":0.5}};
   const customParamMeta = {"FBMPerlin":{"scale":{"type":"number"},"contrast":{"type":"number"},"threshold":{"type":"number"},"octaves":{"type":"number"},"lacunarity":{"type":"number"},"persistence":{"type":"number"}},"singleCellNoise":{"centerX":{"type":"number"},"centerY":{"type":"number"},"radius":{"type":"number"},"thickness":{"type":"number"},"contrast":{"type":"number"}},"customNoise":{"centerX":{"type":"number"},"centerY":{"type":"number"},"radius":{"type":"number"},"fuzziness":{"type":"number"}},"FallOffNoise":{"centerX":{"type":"number"},"centerY":{"type":"number"},"radius":{"type":"number"},"jaggedness":{"type":"number"},"seed":{"type":"number"},"power":{"type":"number"},"steepness":{"type":"number"}}};
 
   const customFunctions = {
+    'FBMPerlin': FBMPerlin,
     'FallOffNoise': FallOffNoise,
 
   };
@@ -604,21 +716,21 @@ const CONTINENT = (function() {
   function getValue(x, y, z = 0) {
     let final = 0;
 
-    const params0 = {"scale":400,"octaves":3,"falloff":0.5,"contrast":1,"threshold":0};
-    const noiseFn0 = customFunctions['perlin'] || NoiseLib.getNoiseFunction('perlin');
+    const params0 = {"scale":600,"octaves":3,"falloff":0.5,"contrast":0.8,"threshold":0,"lacunarity":2,"persistence":5};
+    const noiseFn0 = customFunctions['FBMPerlin'] || NoiseLib.getNoiseFunction('FBMPerlin');
     const nx0 = (x + globalState.offsetX) * globalState.zoom + 0;
     const ny0 = (y + globalState.offsetY) * globalState.zoom + 0;
     let n0 = noiseFn0(nx0, ny0, z + 0, 0, params0);
     n0 = n0 < 0 ? 0 : n0 > 1 ? 1 : n0;
     final = n0;
-    const params1 = {"scale":60,"octaves":4,"falloff":0.5,"warpStrength":0.7,"contrast":1,"threshold":0};
+    const params1 = {"scale":60,"octaves":4,"falloff":0.5,"warpStrength":0.8,"contrast":0.8,"threshold":0};
     const noiseFn1 = customFunctions['domain_warp'] || NoiseLib.getNoiseFunction('domain_warp');
     const nx1 = (x + globalState.offsetX) * globalState.zoom + 0;
     const ny1 = (y + globalState.offsetY) * globalState.zoom + 0;
     let n1 = noiseFn1(nx1, ny1, z + 0, 0, params1);
     n1 = n1 < 0 ? 0 : n1 > 1 ? 1 : n1;
-    final = applyBlend(final, n1, 'avg', { layerIndex: 1 });
-    const params2 = {"centerX":(220 + globalState.offsetX ) * globalState.zoom,"centerY":(190 + globalState.offsetY)  * globalState.zoom,"radius": 200,"jaggedness":0.2,"seed":(Math.random() * 10000)/10000,"power":5,"steepness":1.5,"scale":60};
+    final = applyBlend(final, n1, 'StrengthBased', { layerIndex: 1 });
+    const params2 = {"centerX":(220 + globalState.offsetX ) * globalState.zoom,"centerY":(190 + globalState.offsetY)  * globalState.zoom,"radius":800,"jaggedness":0.2,"seed":0,"power":5,"steepness":1.5,"scale":60};
     const noiseFn2 = customFunctions['FallOffNoise'] || NoiseLib.getNoiseFunction('FallOffNoise');
     const nx2 = (x + globalState.offsetX) * globalState.zoom + 0;
     const ny2 = (y + globalState.offsetY) * globalState.zoom + 0;
