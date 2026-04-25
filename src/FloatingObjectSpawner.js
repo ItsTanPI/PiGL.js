@@ -22,8 +22,8 @@ export class FloatingObjectSpawner {
         
         // Model definitions with names and rotation behavior
         // Threshold callback function: determines if object spawns based on noise value
-        const shipThreshold = (rawValue) => rawValue <= 0.3;  // Ships only in deep water
-        const defaultThreshold = (rawValue) => rawValue >= 0.3 && rawValue <= 0.4;  // Others in water/beach
+        const shipThreshold = (rawValue) => rawValue <= 0.2;  // Ships only in deep water
+        const defaultThreshold = (rawValue) => rawValue >= 0.2 && rawValue <= 0.3;  // Others in water/beach
         
         this.models = [
             // Barrels and containers (barrel: full 3D, others: Y-only)
@@ -36,13 +36,14 @@ export class FloatingObjectSpawner {
             { file: 'bottle-large.obj', name: 'Large Bottle', type: 'bottle', rotationMode: 'y-only', scale: 1.0, yOffset: -0.5, probability: 0.08, thresholdCallback: defaultThreshold },
             
             // Ships (Y rotation only, low probability) - only spawn in deep water (rawValue <= 0.3)
-            { file: 'ship-large.obj', name: 'Ship Large', type: 'ship', rotationMode: 'y-only', scale: 1.0, yOffset: -1, probability: 0.005, thresholdCallback: shipThreshold },
-            { file: 'ship-pirate-large.obj', name: 'Pirate Ship Large', type: 'ship', rotationMode: 'y-only', scale: 1.0, yOffset: -1, probability: 0.005, thresholdCallback: shipThreshold },
-            { file: 'ship-pirate-medium.obj', name: 'Pirate Ship Medium', type: 'ship', rotationMode: 'y-only', scale: 1.0, yOffset: -1, probability: 0.005, thresholdCallback: shipThreshold },
+            { file: 'ship-large.obj', name: 'Ship Large', type: 'ship', rotationMode: 'y-only', scale: 2.0, yOffset: -1, probability: 0.005, thresholdCallback: shipThreshold },
+            // { file: 'ship.obj', name: 'Ship Large', type: 'ship', rotationMode: 'y-only', scale: 1.0, yOffset: 0, probability: 1, thresholdCallback: shipThreshold },
+            { file: 'ship-pirate-large.obj', name: 'Pirate Ship Large', type: 'ship', rotationMode: 'y-only', scale: 2.0, yOffset: -1, probability: 0.005, thresholdCallback: shipThreshold },
+            { file: 'ship-pirate-medium.obj', name: 'Pirate Ship Medium', type: 'ship', rotationMode: 'y-only', scale: 2.0, yOffset: -1, probability: 0.005, thresholdCallback: shipThreshold },
             { file: 'ship-pirate-small.obj', name: 'Pirate Ship Small', type: 'ship', rotationMode: 'y-only', scale: 1.0, yOffset: -1, probability: 0.005, thresholdCallback: shipThreshold },
-            { file: 'ship-large.obj', name: 'Ship Large', type: 'ship', rotationMode: 'y-only', scale: 1.0, yOffset: -1, probability: 0.005, thresholdCallback: shipThreshold },
-            { file: 'ship-medium.obj', name: 'Ship Large', type: 'ship', rotationMode: 'y-only', scale: 1.0, yOffset: -1, probability: 0.005, thresholdCallback: shipThreshold },
-            { file: 'ship-small.obj', name: 'Ship Large', type: 'ship', rotationMode: 'y-only', scale: 1.0, yOffset: -1, probability: 0.005, thresholdCallback: shipThreshold },    
+            { file: 'ship-large.obj', name: 'Ship Large', type: 'ship', rotationMode: 'y-only', scale: 2.0, yOffset: -1, probability: 0.005, thresholdCallback: shipThreshold },
+            { file: 'ship-medium.obj', name: 'Ship Large', type: 'ship', rotationMode: 'y-only', scale: 2.0, yOffset: -1, probability: 0.005, thresholdCallback: shipThreshold },
+            { file: 'ship-small.obj', name: 'Ship Large', type: 'ship', rotationMode: 'y-only', scale: 2.0, yOffset: -1, probability: 0.005, thresholdCallback: shipThreshold },    
             
             // Boats (Y rotation only)
             { file: 'boat-row-large.obj', name: 'Rowboat Large', type: 'boat', rotationMode: 'y-only', scale: 1.0, yOffset: -0.2, probability: 0.15, thresholdCallback: defaultThreshold },

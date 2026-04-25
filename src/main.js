@@ -32,6 +32,7 @@ import pixelArtFs from './Engine/shaders/pixelart.frag?raw';
 import waterVs from './Engine/shaders/Water.vert?raw';
 import waterFs from './Engine/shaders/Water.frag?raw';
 import BuoyancyVs from './Engine/shaders/Buoyancy.vert?raw';
+import treeWaveVs from './Engine/shaders/TreeWave.vert?raw';
 import masterVs from './Engine/shaders/ShaderLib/Master.vert?raw';
 import masterFs from './Engine/shaders/ShaderLib/Master.frag?raw';
 import { HexGridMesh } from './HexGridMesh.js';
@@ -96,6 +97,7 @@ let lightingBuffer = new RenderTarget(gl, window.innerWidth, window.innerHeight,
 
 const shaderMain = new Shader(gl, masterVs, masterFs);
 const shaderBuoyancy = new Shader(gl, [BuoyancyVs, masterVs], masterFs);
+const shaderTreeWave = new Shader(gl, [treeWaveVs, masterVs], masterFs);
 const shaderScreen = new Shader(gl, screenVs, screenFs);
 const shaderDisplacemet = new Shader(gl, [waterVs, masterVs], [waterFs, masterFs]);
 const shaderLighting = new Shader(gl, lightingVs, lightingFs);
@@ -116,6 +118,8 @@ const islandTexture = new Texture(gl, './Assets/Textures/island.png');
 
 const matScene = new Material(shaderMain, 'Scene Mat');
 const planeTer = new Material(shaderMain, 'Scene Plane');
+const matTreeWave = new Material(shaderTreeWave, 'Tree Wave');
+
 
 const matBuoyancy = new Material(shaderBuoyancy, 'Ship Mat');
 const matWater = new Material(shaderDisplacemet, 'Water');
@@ -139,6 +143,20 @@ matScene.setUniforms({
     'uHasTexture': 1.0, 
     'uMainTex': shipTexture.texture, 
     'uRoughness': 1.0
+});
+
+
+matTreeWave.setUniforms({
+    'uColor': [1.0, 1.0, 1.0, 1.0],
+    'uHasTexture': 1.0,
+    'uMainTex': shipTexture.texture,
+    'uRoughness': 1.0,
+    'uTime': 0.0,
+    'uWaveSpeed': 0.5,
+    'uWaveStrength': 0.7,
+    'uWaveFrequency': 100,
+    'uWaveHeight': 7.0,
+    'uWindDir': [1.0, 0.5] // New: Direction the breeze flows
 });
 
 planeTer.setUniforms({ 
@@ -215,6 +233,7 @@ const materials = {
     'PixelArt': matPixelArt,
     'Water': matWater,
     'Buoyancy': matBuoyancy,
+    'TreeWave': matTreeWave,
     'planeTer': planeTer
 };
 var  a = {num: 10, num2 : 20}
@@ -337,10 +356,12 @@ Terrain.transform.scale.set(1, 0.4, 1);
 scene.push(Terrain);
 
 
-// ObjLoader.load(gl, './Assets/3D/scene1.obj').then(mesh => {
-//     const obj = new GameObject(renderer, matScene, mesh, 'Scene');
-//     obj.transform.position.set(-15, -6.1, 10);
-//     obj.transform.scale.set(1, 1, 1);
+// ObjLoader.load(gl, './Assets/3D/house.obj').then(mesh => {
+//     // console.log(mesh);
+    
+//     const obj = new GameObject(renderer, , mesh, 'housee');
+//     obj.transform.position.set(-15, -2.1, 10);
+//     obj.transform.scale.set(10, 10, 10);
 //     scene.push(obj);
 // });
 
@@ -350,7 +371,7 @@ scene.push(Terrain);
 // #region Floating Objects Configuration
 
 const floatingSpawner = new FloatingObjectSpawner(gl, renderer, matBuoyancy, scene);
-const landSpawner = new LandObjectSpawner(gl, renderer, matScene, scene, [], {
+const landSpawner = new LandObjectSpawner(gl, renderer, matTreeWave, scene, [], {
     threshold: 0.425
 });
 
@@ -695,6 +716,7 @@ function loop(now) {
     // Update material uniforms with time
     matWater.setUniforms({ 'uTime': Time.time });
     matBuoyancy.setUniforms({ 'uTime': Time.time });
+    matTreeWave.setUniforms({ 'uTime': Time.time });
     matSkybox.setUniforms({ 'uTime': Time.time });
     
     // Update light direction

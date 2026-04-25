@@ -14,23 +14,61 @@ export class HexGridMesh extends Mesh {
     /**
      * Helper function to get terrain color based on normalized height
      */
-    static terrainColor(v) {
-        if (v <= 0.3)  return [14/255,  54/255,  124/255];
-        if (v <= 0.35) return [30/255,  80/255,  200/255];
-        // if (v <= 0.4)  return [54/255,  130/255, 220/255];
-        if (v <= 0.4)  return [242/255, 151/255, 106/255]; // Beach color from image
-        return [234/255, 191/255, 145/255];
-    }
+        static terrainColor(v) {
+            if (v <= 0.3)  return [14/255,  54/255,  124/255];
+            // if (v <= 0.35) return [30/255,  80/255,  200/255];
+            // if (v <= 0.4)  return [54/255,  130/255, 220/255];
+            if (v <= 0.4)  return [234/255, 191/255, 145/255]; 
+            // return [97/255, 198/255, 128/255];
+            return [234/255, 191/255, 145/255]
+        }
 
     static terrainValue(v) {
+        if (v <= 0.1)  return  20/255;
         if (v <= 0.3)  return  37/255;
-        if (v <= 0.35) return  73/255;
-        if (v <= 0.4)  return  142/255;
-        if (v <= 0.7)  return  181/255;
-        return 1;
+        // if (v <= 0.45)   return  180/255 + v;
+        // if (v <= 0.)  return  230/255;
+        return 180/255;
     }
 
+    
+    exportOBJ(filename, vertices, uvs, normals, indices) {
+        let obj = '';
 
+        // Vertices
+        for (let i = 0; i < vertices.length; i += 3) {
+            obj += `v ${vertices[i]} ${vertices[i+1]} ${vertices[i+2]}\n`;
+        }
+
+        // UVs
+        for (let i = 0; i < uvs.length; i += 2) {
+            obj += `vt ${uvs[i]} ${uvs[i+1]}\n`;
+        }
+
+        // Normals
+        for (let i = 0; i < normals.length; i += 3) {
+            obj += `vn ${normals[i]} ${normals[i+1]} ${normals[i+2]}\n`;
+        }
+
+        // Faces (IMPORTANT: +1 indexing)
+        for (let i = 0; i < indices.length; i += 3) {
+            const a = indices[i] + 1;
+            const b = indices[i + 1] + 1;
+            const c = indices[i + 2] + 1;
+
+            obj += `f ${a}/${a}/${a} ${b}/${b}/${b} ${c}/${c}/${c}\n`;
+        }
+
+        // Download
+        const blob = new Blob([obj], { type: 'text/plain' });
+        const link = document.createElement('a');
+
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        link.click();
+
+        URL.revokeObjectURL(link.href);
+    }
 
     constructor(gl, cols = 20, rows = 15, radius = 1.0, isTer = false) {
         const hSpacing = radius * Math.sqrt(3);
@@ -43,7 +81,7 @@ export class HexGridMesh extends Mesh {
         const vertPos = [];   // [x, y, z,  x, y, z, ...]
         const vertMap = {};   // key: "row_col" -> index
         const vertCol = [];   // [r, g, b,  r, g, b, ...]
-        
+        var c = 0;
         // Create noise instance for height mapping
         const noise = CONTINENT;
         let minHeight = Infinity, maxHeight = -Infinity;
@@ -59,6 +97,7 @@ export class HexGridMesh extends Mesh {
                 if(isTer)
                 {
                    y = (HexGridMesh.terrainValue(noiseValue)) * 20;
+                   if (HexGridMesh.terrainValue(noiseValue) >= 0.7) c++;
                 }   
     
                 heightMap[`${row}_${col}`] = y;
@@ -66,7 +105,8 @@ export class HexGridMesh extends Mesh {
                 maxHeight = Math.max(maxHeight, y);
             }
         }
-
+        console.log(c);
+        
         // Second pass: create vertices with colors based on normalized height
         for (let row = 0; row <= rows; row++) {
             const xOffset = (row % 2 !== 0) ? hSpacing / 2 : 0;
@@ -176,6 +216,7 @@ export class HexGridMesh extends Mesh {
             new Uint16Array(indices)
         );
 
+
         // Store and upload vertex colors
         this.colors = new Float32Array(vertCol);
         this.colorBuffer = gl.createBuffer();
@@ -190,6 +231,15 @@ export class HexGridMesh extends Mesh {
         this.vSpacing  = vSpacing;
         this.totalW    = totalW;
         this.totalH    = totalH;
+
+        //         this.exportOBJ(
+        // "island.obj",
+        // new Float32Array(vertPos),
+        // new Float32Array(uvs),
+        // normals,
+        // new Uint16Array(indices)
+        // );
+
     }
 
     /**
