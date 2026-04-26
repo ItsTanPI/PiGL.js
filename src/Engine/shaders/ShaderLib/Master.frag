@@ -17,7 +17,7 @@ out vec4 FragColor;
 void fragment(inout vec4 color, inout vec3 normal, inout float emission);
 
 void main() {
-    vec4 color = vec4( 1.0);
+    vec4 color = vec4(vec3(1.0), 0.0);
 
     if (uHasTexture > 0.1) {
         color *= texture(uMainTex, vTexCoord);

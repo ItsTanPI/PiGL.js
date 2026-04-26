@@ -133,8 +133,8 @@ export class Renderer {
         mesh.bind(shader);
 
         // Setup Standard Uniforms
-        shader.setUniform('uProjectionMatrix', camera.projectionMatrix);
-        shader.setUniform('uViewMatrix', camera.viewMatrix);
+        const blockIndex = gl.getUniformBlockIndex(shader.program, 'FrameData');
+        gl.uniformBlockBinding(shader.program, blockIndex, 0); // → binding 0
         shader.setUniform('uModelMatrix', gameObject.transform.worldMatrix);
 
         // Setup Material Uniforms

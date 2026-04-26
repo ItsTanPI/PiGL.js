@@ -105,7 +105,6 @@ export class HexGridMesh extends Mesh {
                 maxHeight = Math.max(maxHeight, y);
             }
         }
-        console.log(c);
         
         // Second pass: create vertices with colors based on normalized height
         for (let row = 0; row <= rows; row++) {
@@ -129,40 +128,118 @@ export class HexGridMesh extends Mesh {
                 vertCol.push(color[0], color[1], color[2]);
             }
         }
-
-        // ── 2. Build triangle index list ─────────────────────────────────
-        const indices = [];
-
         function idx(row, col) {
             return vertMap[`${row}_${col}`] ?? -1;
         }
 
-        for (let row = 0; row < rows; row++) {
-            for (let col = 0; col < cols; col++) {
-                const tL = idx(row,     col);
-                const tR = idx(row,     col + 1);
+        // ── 2. Build triangle index list ─────────────────────────────────
+        const indices = [];
 
-                const bMcol = (row % 2 === 0) ? col     : col + 1;
-                const bLcol = (row % 2 === 0) ? col - 1 : col;
-
-                const bM = idx(row + 1, bMcol);
-                const bL = idx(row + 1, bLcol);
-
-                // Triangle 1: upper triangle (tL, tR, bM)
-                // Even rows:  tL top-left, tR top-right, bM bottom-center → CW = tL, bM, tR
-                // Odd rows:   offset shifts bM right → CW = tL, tR, bM
-                if (tL !== -1 && tR !== -1 && bM !== -1) {
-                    indices.push(tL, bM, tR);
-                }
-
-                // Triangle 2: lower triangle (tL, bL, bM)
-                // Even rows:  bL is col-1 so bM is to the right of bL → CW = tL, bL, bM
-                // Odd rows:   bL is col so bM is to the right → CW = tL, bM, bL
-                if (tL !== -1 && bL !== -1 && bM !== -1) {
-                    indices.push(tL, bL, bM);
-                }
+        function isBorderOrNextToBorder(row, col) {
+        for (let dr = -3; dr <= 3; dr++) {
+            for (let dc = -3; dc <= 3; dc++) {
+                const r = row + dr;
+                const c = col + dc;
+                const yTL = heightMap[`${r}_${c}`];
+                const yTR = heightMap[`${r}_${c+1}`];
+                const bMcol = (r % 2 === 0) ? c : c + 1;
+                const bLcol = (r % 2 === 0) ? c - 1 : c;
+                const yBM = heightMap[`${r+1}_${bMcol}`];
+                const yBL = heightMap[`${r+1}_${bLcol}`];
+                if (yTL === undefined || yTR === undefined || yBM === undefined || yBL === undefined) continue;
+                if (!(yTL === yTR && yTR === yBM && yBM === yBL)) return true;
             }
         }
+        return false;
+    }
+
+    function unsubdivide(indices, vertPos, vertMap, heightMap, rows, cols, iterations) {
+        function idx(row, col) {
+            return vertMap[`${row}_${col}`] ?? -1;
+        }
+
+        let step = 2;
+        for (let iter = 0; iter < iterations; iter++) {
+            indices.length = 0;
+            const offset = (iter % 2 === 0) ? 0 : step / 2;
+            for (let row = 0; row < rows; row += step) {
+                const ccc = ((row / step) % 2 === 0) ? offset : offset + step / 2;
+                for (let col = ccc; col < cols; col += step) {
+                    // add this check at top of col loop
+                    // if (isBorderOrNextToBorder(row, col)) continue;
+                    const v00 = idx(row,        col);
+                    const v02 = idx(row,        col + step);
+                    const v21 = idx(row + step, col + step / 2);
+                    if (v00 !== -1 && v02 !== -1 && v21 !== -1
+                        && heightMap[`${row}_${col}`] === heightMap[`${row}_${col+step}`]
+                        && heightMap[`${row}_${col}`] === heightMap[`${row+step}_${col+step/2}`])
+                        indices.push(v00, v21, v02);
+
+
+                    const v01 = idx(row,        col + step);
+                    const v20 = idx(row + step, col + step / 2);
+                    const v22 = idx(row + step, col + step / 2 + step);
+                    if (v01 !== -1 && v20 !== -1 && v22 !== -1
+                        && heightMap[`${row}_${col+step}`] === heightMap[`${row+step}_${col+step/2}`]
+                        && heightMap[`${row}_${col+step}`] === heightMap[`${row+step}_${col+step/2+step}`])
+                        indices.push(v01, v20, v22);
+                                    }
+            }
+            step *= 2;
+        }
+    }
+    // Pass 1 — unsubdivide flat interior first
+    unsubdivide(indices, vertPos, vertMap, heightMap, rows, cols, 2);
+
+    // Pass 2 — borders (height changes)
+    for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+            const tL = idx(row, col);
+            const tR = idx(row, col + 1);
+            const bMcol = (row % 2 === 0) ? col : col + 1;
+            const bLcol = (row % 2 === 0) ? col - 1 : col;
+            const bM = idx(row + 1, bMcol);
+            const bL = idx(row + 1, bLcol);
+
+            const yTL = heightMap[`${row}_${col}`];
+            const yTR = heightMap[`${row}_${col+1}`];
+            const yBM = heightMap[`${row+1}_${bMcol}`];
+            const yBL = heightMap[`${row+1}_${bLcol}`];
+
+            const isBorder = !(yTL === yTR && yTR === yBM && yBM === yBL);
+            if (isBorderOrNextToBorder(row, col)) {
+                if (tL !== -1 && tR !== -1 && bM !== -1) indices.push(tL, bM, tR);
+                if (tL !== -1 && bL !== -1 && bM !== -1) indices.push(tL, bL, bM);
+            }
+        }
+    }
+
+        // for (let row = 0; row < rows; row++) {
+        //     for (let col = 0; col < cols; col++) {
+        //         const tL = idx(row,     col);
+        //         const tR = idx(row,     col + 1);
+
+        //         const bMcol = (row % 2 === 0) ? col     : col + 1;
+        //         const bLcol = (row % 2 === 0) ? col - 1 : col;
+
+        //         const bM = idx(row + 1, bMcol);
+        //         const bL = idx(row + 1, bLcol);
+
+        //         // Triangle 1: upper triangle (tL, tR, bM)
+        //         // Even rows:  tL top-left, tR top-right, bM bottom-center → CW = tL, bM, tR
+        //         // Odd rows:   offset shifts bM right → CW = tL, tR, bM
+        //         if (tL !== -1 && tR !== -1 && bM !== -1) {
+        //             indices.push(tL, bM, tR);
+        //         }
+
+        //         // Triangle 2: lower triangle (tL, bL, bM)
+        //         // Even rows:  bL is col-1 so bM is to the right of bL → CW = tL, bL, bM
+        //         // Odd rows:   bL is col so bM is to the right → CW = tL, bM, bL
+        //         if (tL !== -1 && bL !== -1 && bM !== -1) {
+        //             indices.push(tL, bL, bM);
+        //         }
+        //     }
+        // }
         // ── 3. UVs ───────────────────────────────────────────────────────
         const uvs = [];
         for (let i = 0; i < vertPos.length / 3; i++) {

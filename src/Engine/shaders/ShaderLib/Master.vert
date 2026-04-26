@@ -6,10 +6,16 @@ in vec3 aNormal;
 in vec3 aColor;
 in vec2 aTexCoord;
 
-uniform mat4 uViewMatrix;
-uniform mat4 uProjectionMatrix;
+layout(std140) uniform FrameData 
+{
+    mat4 uProjectionMatrix;
+    mat4 uViewMatrix;
+    vec3 uCameraPos;
+};
+
+// uModelMatrix stays as regular uniform (per-object, different every draw)
 uniform mat4 uModelMatrix;
-uniform vec3 uCameraPos;
+// uniform vec3 uCameraPos;
 
 out vec3 vNormal;
 out vec3 vPosition;
@@ -60,6 +66,6 @@ void main()
     vec3 offsetFromCamera = pos - uCameraPos;
     float r = (offsetFromCamera.x * offsetFromCamera.x) + (offsetFromCamera.z * offsetFromCamera.z);
     
-    gl_Position = uProjectionMatrix * uViewMatrix * (vec4(pos, 1.0) + vec4(0.0, r / -4000.0, 0.0, 0.0));
+    gl_Position = uProjectionMatrix * uViewMatrix * (vec4(pos, 1.0) + vec4(0.0, r / -5000.0, 0.0, 0.0));
 
 }

@@ -339,8 +339,11 @@ resizeCanvas();
 
 const aspect = canvas.width / canvas.height;
 camera.setPerspective(0.8, aspect, 0.1, 1000.0);
-camera.transform.position.set(-39.2, 1.8, -47);
-camera.transform.rotation.set(0.0, isMobile ? 3.24 : 3.22, 0);
+// Set the Position from the image
+camera.transform.position.set(-218.541, 9.572, -209.676);
+
+// Set the Rotation from the image
+camera.transform.rotation.set(-0.694, 3.14, 0);
 
 const size = 30.0;
 lightCamera.setOrthographic(-size, size, -size, size, 1.0, 100.0);
@@ -381,7 +384,7 @@ const oceanConfig = {
 };
 
 const floatingSpawnConfig = {
-    enabled: isMobile ? true : true,
+    enabled: isMobile ? true : false,
     count: 50,
     seed: 68,
     bounds: {
@@ -429,14 +432,14 @@ if (floatingSpawnConfig.enabled) {
     });
 
     landSpawner.setSeed(floatingSpawnConfig.seed);
-    landSpawner.spawnMany(
-        150,
-        floatingSpawnConfig.bounds,
-        -11.0
-    ).then(spawned => {
-        landObjects = spawned;
-        console.log(`Spawned ${spawned.length} land objects with seed ${floatingSpawnConfig.seed}`);
-    });
+    // landSpawner.spawnMany(
+    //     150,
+    //     floatingSpawnConfig.bounds,
+    //     -11.0
+    // ).then(spawned => {
+    //     landObjects = spawned;
+    //     console.log(`Spawned ${spawned.length} land objects with seed ${floatingSpawnConfig.seed}`);
+    // });
 }
 
 // #endregion
@@ -476,8 +479,10 @@ let meshLOD1 = new HexGridMesh(gl, 255, 255, 1.0)
 const centerObj = new GameObject(renderer, matWater, meshLOD1, `Water Floor [0,0]`);
 centerObj.transform.position.set(-(255 * Math.sqrt(3)/2), -6.5, -(255 * 1.5/2));
 centerObj.transform.scale.set(1, 1, 1);
-scene.push(centerObj);
+// scene.push(centerObj);
 CenterLOD = centerObj;
+
+
 
 
 
@@ -495,7 +500,7 @@ CenterLOD = centerObj;
 //     // Mobile: LOD2 center, LOD3 everything else
 //     // Desktop: LOD1 center, LOD2 mid ring, LOD3 outer
 //     const LOD1_RADIUS = isMobile ? 1.0 : 0.0;
-//     const LOD2_RADIUS = isMobile ? -1 : -1.0;
+//     const LOD2_RADIUS = isMobile ? -1 : 5.0;
 
 //     const centerMesh = isMobile ? meshLOD2 : meshLOD1;
 //     const centerLabel = isMobile ? 'LOD2' : 'LOD1';
@@ -707,11 +712,19 @@ let lastHudContent = '';
 
 // #region Main Animation Loop
 
+
+const ubo = gl.createBuffer();
+gl.bindBuffer(gl.UNIFORM_BUFFER, ubo);
+gl.bufferData(gl.UNIFORM_BUFFER, 128 + 12, gl.DYNAMIC_DRAW); // 2 mat4s + vec3
+gl.bindBufferBase(gl.UNIFORM_BUFFER, 0, ubo); // binding point 0
+
+
 function loop(now) {
     Time.update(now);
     game.deltaTime = Time.deltaTime;
 
     cameraController.update(Time.deltaTime);
+
     
     // Update material uniforms with time
     matWater.setUniforms({ 'uTime': Time.time });
@@ -737,7 +750,12 @@ function loop(now) {
     camera.updateView();
     viewportPass.setViewports(viewports);
     camera.updateProjection();
-    lightCamera.updateProjection();
+
+
+    gl.bindBuffer(gl.UNIFORM_BUFFER, ubo);
+    gl.bufferSubData(gl.UNIFORM_BUFFER, 0,   new Float32Array(camera.projectionMatrix));
+    gl.bufferSubData(gl.UNIFORM_BUFFER, 64,  new Float32Array(camera.viewMatrix));
+    gl.bufferSubData(gl.UNIFORM_BUFFER, 128, new Float32Array([camera.transform.position.x, camera.transform.position.y, camera.transform.position.z]));
 
     // Update skybox lighting
     if (matSkybox.uniforms['uSunColor']) {
