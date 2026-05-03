@@ -32,6 +32,10 @@ void main() {
     vec3 fdy = dFdy(vPosition);
     vec3 normal = normalize(cross(fdx, fdy));
     
+    if(uHasTexture > 0.1)
+    {
+        normal = normalize(vNormal);
+    }
     float emission = 0.0;
     vec2 uv = vTexCoord;
 

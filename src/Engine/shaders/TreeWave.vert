@@ -33,18 +33,16 @@ void vertex(inout vec3 localPos, inout vec3 worldPos, inout vec3 yDisplacement,
     // Root pinning — vertices near y=0 don't move
     float heightMask = smoothstep(0.0, uWaveHeight, localPos.y);
 
-    // Sample noise at the TREE'S ORIGIN, not per-vertex world pos
-    // This is what prevents distortion — every vertex of the same tree
-    // gets the exact same wind value, so the whole tree moves as a rigid body
+
     vec3 worldOrigin = modelMatrix[3].xyz;
+    // hard coded for leaf 
+    if((texCoord.x >= 0.125 && texCoord.x <= 0.25 && texCoord.y >=0.25 && texCoord.y <= 0.5) ) worldOrigin = worldPos;
     vec2 samplePos = worldOrigin.xz * uWaveFrequency + normalize(uWindDir) * uTime * uWaveSpeed;
 
     float primary   = perlin2D(samplePos);
     float secondary = perlin2D(samplePos * 2.3 + vec2(5.7, 9.3)) * 0.35;
     float wind = (primary + secondary) * uWaveStrength;
 
-    // Displace in world space along wind direction, then un-rotate into local space
-    // transpose = inverse for orthonormal rotation matrices
     vec3 worldDisp = vec3(normalize(uWindDir), 0.0).xzy * wind * heightMask;
     vec3 localDisp = transpose(mat3(modelMatrix)) * worldDisp;
 

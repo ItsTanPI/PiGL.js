@@ -18,6 +18,11 @@ export class LandObjectSpawner {
         this.gl = gl;
         this.renderer = renderer;
         this.material = material;
+        this.defaultMaterial = material;
+        this.materials = options.materials || {};
+        this.materialResolver = typeof options.materialResolver === 'function'
+            ? options.materialResolver
+            : null;
         this.scene = scene;
         this.meshCache = {};
         // Backward-compatible arguments:
@@ -47,23 +52,23 @@ export class LandObjectSpawner {
         // Catalog in FloatingObjectSpawner-style with weighted probabilities.
         this.modelCatalog = [
             // Palms (trees) - spawn on land > 0.45
-            { file: 'palm-detailed-straight.obj', name: 'Palm Detailed Straight', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.75, 1.10], yOffset: 0.0, probability: 0.2, thresholdCallback: palmThreshold },
-            { file: 'palm-detailed-bend.obj', name: 'Palm Detailed Bend', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.75, 1.10], yOffset: 0.0, probability: 0.2, thresholdCallback: palmThreshold },
-            { file: 'palm-detailed-bend2.obj', name: 'Palm Detailed Bend2', rotationMode: 'y-only', scale: 1.0,scaleRange: [0.75, 1.10],  yOffset: 0.0, probability: 0.2, thresholdCallback: palmThreshold },
-            { file: 'palm-rare.obj', name: 'Palm rare', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, scaleRange: [0.75, 1.10], probability: 0.01, thresholdCallback: palmThreshold },
-            { file: 'palm-s.obj', name: 'Palm s', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, scaleRange: [0.75, 1.10], probability: 0.1, thresholdCallback: palmThresholdS },
-            { file: 'palm-small.obj', name: 'Palm small', rotationMode: 'y-only', scale: 1.0, yOffset: -0.2, scaleRange: [0.75, 1.10], probability: 0.1, thresholdCallback: palmThreshold },
+            { file: 'palm-detailed-straight.obj', name: 'Palm Detailed Straight', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.75, 1.10], yOffset: 0.0, probability: 0.1, thresholdCallback: palmThreshold, materialKey: 'TreeWave' },
+            { file: 'palm-detailed-bend.obj', name: 'Palm Detailed Bend', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.75, 1.10], yOffset: 0.0, probability: 0.1, thresholdCallback: palmThreshold, materialKey: 'TreeWave' },
+            { file: 'palm-detailed-bend2.obj', name: 'Palm Detailed Bend2', rotationMode: 'y-only', scale: 1.0,scaleRange: [0.75, 1.10],  yOffset: 0.0, probability: 0.1, thresholdCallback: palmThreshold, materialKey: 'TreeWave' },
+            { file: 'palm-rare.obj', name: 'Palm rare', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, scaleRange: [0.75, 1.10], probability: 0.01, thresholdCallback: palmThreshold, materialKey: 'TreeWave' },
+            { file: 'palm-s.obj', name: 'Palm s', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, scaleRange: [0.75, 1.10], probability: 0.1, thresholdCallback: palmThresholdS, materialKey: 'TreeWave' },
+            { file: 'palm-small.obj', name: 'Palm small', rotationMode: 'y-only', scale: 1.0, yOffset: -0.2, scaleRange: [0.75, 1.10], probability: 0.1, thresholdCallback: palmThreshold, materialKey: 'TreeWave' },
 
-            // // Grass - spawn on land > 0.45
-            { file: 'grass.obj', name: 'Grass', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.75, 1.35], yOffset: 0.0, probability: 0.1, thresholdCallback: grassThreshold },
-            { file: 'grass-patch.obj', name: 'Grass Patch', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.75, 1.30], yOffset: 0.0, probability: 0.1, thresholdCallback: grassThreshold },
-            { file: 'grass-plant.obj', name: 'Grass Plant', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.80, 1.40], yOffset: 0.0, probability: 0.1, thresholdCallback: grassThreshold },
-            { file: 'patch-grass.obj', name: 'Patch Grass', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.80, 1.25], yOffset: 0.0, probability: 0.1, thresholdCallback: grassThreshold },
-            { file: 'patch-grass-foliage.obj', name: 'Patch Grass Foliage', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.80, 1.25], yOffset: 0.0, probability: 0.1, thresholdCallback: grassThreshold },
-            { file: 'patch-sand.obj', name: 'Patch Sand', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.85, 1.20], yOffset: 0.0, probability: 0.1, thresholdCallback: grassThreshold },
-            { file: 'patch-sand-foliage.obj', name: 'Patch Sand Foliage', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.80, 1.20], yOffset: 0.0, probability: 0.1, thresholdCallback: rocksThreshold },
+            // Grass - spawn on land > 0.45
+            // // { file: 'grass.obj', name: 'Grass', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.75, 1.35], yOffset: 0.0, probability: 0.1, thresholdCallback: grassThreshold },
+            // { file: 'grass-patch.obj', name: 'Grass Patch', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.75, 1.30], yOffset: 0.0, probability: 0.1, thresholdCallback: grassThreshold },
+            // // { file: 'grass-plant.obj', name: 'Grass Plant', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.80, 1.40], yOffset: 0.0, probability: 0.1, thresholdCallback: grassThreshold },
+            // { file: 'patch-grass.obj', name: 'Patch Grass', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.80, 1.25], yOffset: 0.0, probability: 0.1, thresholdCallback: grassThreshold },
+            // { file: 'patch-grass-foliage.obj', name: 'Patch Grass Foliage', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.80, 1.25], yOffset: 0.0, probability: 0.1, thresholdCallback: grassThreshold },
+            // { file: 'patch-sand.obj', name: 'Patch Sand', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.85, 1.20], yOffset: 0.0, probability: 0.1, thresholdCallback: grassThreshold },
+            // { file: 'patch-sand-foliage.obj', name: 'Patch Sand Foliage', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.80, 1.20], yOffset: 0.0, probability: 0.1, thresholdCallback: rocksThreshold },
 
-            // // Rocks - spawn on higher land > 0.5
+            // // // Rocks - spawn on higher land > 0.5
             // { file: 'rocks-a.obj', name: 'Rocks A', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.75, 3.45], yOffset: 0.0, probability: 0.02, thresholdCallback: rocksThreshold },
             // { file: 'rocks-b.obj', name: 'Rocks B', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.75, 3.45], yOffset: 0.0, probability: 0.02, thresholdCallback: rocksThreshold },
             // { file: 'rocks-c.obj', name: 'Rocks C', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.75, 3.50], yOffset: 0.0, probability: 0.02, thresholdCallback: rocksThreshold },
@@ -86,7 +91,7 @@ export class LandObjectSpawner {
             // { file: 'tower-complete-large.obj', name: 'Tower Complete Large', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.06, thresholdCallback: structureThreshold },
             // { file: 'structure-roof.obj', name: 'Structure Roof', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.1, thresholdCallback: defaultThreshold },
             // { file: 'cannon-mobile.obj', name: 'Cannon Mobile', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.05, thresholdCallback: defaultThreshold },
-            // { file: 'house.obj', name: 'House', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.06, thresholdCallback: defaultThreshold },
+            // { file: 'house.obj', name: 'House', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.08, thresholdCallback: defaultThreshold },
 
 
             // // Misc
@@ -115,6 +120,21 @@ export class LandObjectSpawner {
                 };
             });
         }
+    }
+
+    resolveMaterial(modelDef) {
+        if (modelDef.material) return modelDef.material;
+
+        if (modelDef.materialKey && this.materials[modelDef.materialKey]) {
+            return this.materials[modelDef.materialKey];
+        }
+
+        if (this.materialResolver) {
+            const resolved = this.materialResolver(modelDef, this.materials, this.defaultMaterial);
+            if (resolved) return resolved;
+        }
+
+        return this.defaultMaterial;
     }
 
     setSeed(seed) {
@@ -221,7 +241,8 @@ export class LandObjectSpawner {
         if (!mesh) return null;
 
         const objectName = `${modelDef.name} [Land]`;
-        const obj = new GameObject(this.renderer, this.material, mesh, objectName);
+        const objectMaterial = this.resolveMaterial(modelDef);
+        const obj = new GameObject(this.renderer, objectMaterial, mesh, objectName);
 
         let y = position.y + (modelDef.yOffset || 0);
         y += (HexGridMesh.terrainValue(noiseValue)) * 20 * 0.4;
@@ -294,7 +315,8 @@ export class LandObjectSpawner {
             file: m.file,
             rotationMode: m.rotationMode,
             yOffset: m.yOffset,
-            probability: m.probability
+            probability: m.probability,
+            materialKey: m.materialKey || null
         }));
     }
 }

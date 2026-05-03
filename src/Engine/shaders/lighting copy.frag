@@ -8,7 +8,6 @@ uniform sampler2D uDepthTexture;
 
 // Shadows & Transform
 uniform sampler2D uShadowMap;
-uniform mat4 uInverseViewProjection;
 uniform mat4 uLightSpaceMatrix;
 uniform vec3 uCameraPos; 
 uniform float uTime; // Optional for noise
@@ -30,7 +29,7 @@ const int MAX_VOLUMETRIC_STEPS = 50; // Hard limit for loop
 
 // Helper for shadow check without bias issues inside volume
 float isLit(vec3 pos) {
-    vec4 posLightSpace = uLightSpaceMatrix * vec4(pos, 1.0);
+    vec4 posLightSpace =  vec4(pos, 1.0);
     vec3 projCoords = posLightSpace.xyz / posLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
     

@@ -17,6 +17,9 @@ uniform float uNormalThreshold;
 
 uniform float uSilhouetteDarkening;
 uniform float uCreaseDarkening;
+uniform float uCurvature;
+uniform float uEdgeDistance;
+
 
 void main() {
     // 1. PIXELATION
@@ -34,13 +37,21 @@ void main() {
     float depthEdge = 0.0;
     float normalEdge = 0.0;
 
+    
     // 3. EDGE DETECTION LOOP
     // We multiply the offset by uEdgeWidth to expand the search radius
+    float base = clamp(depthCenter, 0.0, 1.0); // near 0 far 1
+    base /= uEdgeDistance; 
+    if(depthCenter>=0.98) base = 0.0; // make far 0.0
+    
+    float depthBased = 1.0 - pow(base, uCurvature); 
+    float newiwdth =  clamp(uEdgeWidth * depthBased, 0.0, uEdgeWidth);
+    
     vec2 offsets[4];
-    offsets[0] = vec2(1.0, 0.0) * uEdgeWidth;
-    offsets[1] = vec2(-1.0, 0.0) * uEdgeWidth;
-    offsets[2] = vec2(0.0, 1.0) * uEdgeWidth;
-    offsets[3] = vec2(0.0, -1.0) * uEdgeWidth;
+    offsets[0] = vec2(1.0, 0.0) *  newiwdth;
+    offsets[1] = vec2(-1.0, 0.0) * newiwdth;
+    offsets[2] = vec2(0.0, 1.0) *  newiwdth;
+    offsets[3] = vec2(0.0, -1.0) * newiwdth;
 
     for(int i = 0; i < 4; i++) {
         vec2 neighborUV = uv + offsets[i] * texelSize;
@@ -56,17 +67,17 @@ void main() {
     // 4. ADAPTIVE COLOR LOGIC
     vec3 finalColor = quantizedColor;
 
-if (depthEdge > (uDepthThreshold / uEdgeWidth)) {
-    finalColor = quantizedColor * uSilhouetteDarkening;
-} 
-// 2. Only check Normal Edge if Depth Edge didn't trigger
-else if (normalEdge > uNormalThreshold) {
-    finalColor = quantizedColor * uCreaseDarkening;
-} 
-// 3. Optional: Fallback to the base quantized color
-else {
-    finalColor = quantizedColor;
-}
+    float adaptiveDepthThreshold = uDepthThreshold / max(newiwdth, 0.001);
+
+    if (newiwdth > 0.1 && depthEdge > adaptiveDepthThreshold) {
+        finalColor = quantizedColor * uSilhouetteDarkening;
+    } 
+    else if (newiwdth > 0.1 && normalEdge > uNormalThreshold) {
+        finalColor = quantizedColor * uCreaseDarkening;
+    } 
+    else {
+        finalColor = quantizedColor;
+    }
 
     gl_FragColor = vec4(finalColor, 1.0);
 }

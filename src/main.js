@@ -38,6 +38,7 @@ import masterFs from './Engine/shaders/ShaderLib/Master.frag?raw';
 import { HexGridMesh } from './HexGridMesh.js';
 import { LandObjectSpawner } from './LandObjectSpawner.js';
 import CONTINENT from './CustomMapNoise.js';
+import { Vector3 } from './Engine/Math/Vector3.js';
 
 // #endregion
 
@@ -110,6 +111,8 @@ const shaderPixelArt = new Shader(gl, screenVs, pixelArtFs);
 
 const shipTexture = new Texture(gl, './Assets/Textures/colormap.png');
 const islandTexture = new Texture(gl, './Assets/Textures/island.png');
+const Colosium = new Texture(gl, './Assets/Textures/T_Colobus.png');
+
 
 
 // #endregion
@@ -119,6 +122,7 @@ const islandTexture = new Texture(gl, './Assets/Textures/island.png');
 const matScene = new Material(shaderMain, 'Scene Mat');
 const planeTer = new Material(shaderMain, 'Scene Plane');
 const matTreeWave = new Material(shaderTreeWave, 'Tree Wave');
+const matGrassWave = new Material(shaderTreeWave, 'Grass Wave');
 
 
 const matBuoyancy = new Material(shaderBuoyancy, 'Ship Mat');
@@ -156,7 +160,20 @@ matTreeWave.setUniforms({
     'uWaveStrength': 0.7,
     'uWaveFrequency': 100,
     'uWaveHeight': 7.0,
-    'uWindDir': [1.0, 0.5] // New: Direction the breeze flows
+    'uWindDir': [1.0, 0.5], // New: Direction the breeze flows
+});
+
+matGrassWave.setUniforms({
+    'uColor': [1.0, 1.0, 1.0, 1.0],
+    'uHasTexture': 1.0,
+    'uMainTex': shipTexture.texture,
+    'uRoughness': 1.0,
+    'uTime': 0.0,
+    'uWaveSpeed': 1,
+    'uWaveStrength': 0.7,
+    'uWaveFrequency': 1,
+    'uWaveHeight': 1,
+    'uWindDir': [1.0, 0.5], // New: Direction the breeze flows
 });
 
 planeTer.setUniforms({ 
@@ -168,13 +185,15 @@ planeTer.setUniforms({
 
 // Pixel art material setup
 matPixelArt.setUniforms({
-    'uPixelSize': isMobile ? 1 : 3.0,
-    'uEdgeWidth': 0.5,
+    'uPixelSize': isMobile ? 1 : 1.0,
+    'uEdgeWidth': 1,
     'uColorLevels': 128.0,
+    'uEdgeDistance' : 1,
+    'uCurvature' : 2,
     'uDepthThreshold': 0.01,
     'uNormalThreshold': 0.3,
-    'uSilhouetteDarkening': 0.2, // Darker for outer edges
-    'uCreaseDarkening': 0.7,     // Lighter for inner corners/color changes
+    'uSilhouetteDarkening': 0.2, 
+    'uCreaseDarkening': 0.7,   
 });
 
 // Lighting material setup
@@ -183,7 +202,8 @@ matLighting.setUniforms({
     'uLightColor': [1.0, 0.8, 0.75],
     'uAmbient': 0.5,
     'uSpecularStrength': 0.3,
-    'uShininess': 0.03
+    'uShininess': 0.03,
+    'uShadowColor': [0.21, 0.094, 0.09]
 });
 
 // Skybox material setup
@@ -234,6 +254,7 @@ const materials = {
     'Water': matWater,
     'Buoyancy': matBuoyancy,
     'TreeWave': matTreeWave,
+    'GrassWave': matGrassWave,
     'planeTer': planeTer
 };
 var  a = {num: 10, num2 : 20}
@@ -245,7 +266,6 @@ var  a = {num: 10, num2 : 20}
 
 const renderer = new Renderer(gl);
 const camera = new Camera();
-const lightCamera = new Camera();
 const scene = [];
 const renderQueue = new RenderQueue(gl);
 
@@ -268,6 +288,7 @@ renderQueue.addPass(scenePass);
 // Lighting Pass
 const lightingPass = new LightingPass(gl, canvas.width, canvas.height, matLighting, lightingBuffer, 'Lighting Pass');
 lightingPass.setInputBuffers(sceneBuffer.texture, Gbuffer.texture);
+lightingPass.lightDir = new Vector3(0);
 renderQueue.addPass(lightingPass);
 
 // Skybox Pass
@@ -296,7 +317,6 @@ viewportPass.setBuffer('Lit', lightingBuffer.texture);
 viewportPass.setBuffer('Albedo', sceneBuffer.texture);
 viewportPass.setBuffer('Gbuffer', Gbuffer.texture);
 
-lightingPass.lightCamera = lightCamera;
 renderQueue.addPass(viewportPass);
 
 // #endregion
@@ -309,7 +329,7 @@ function resizeCanvas() {
     canvas.height = window.innerHeight;
 
     // 2. Calculate the internal "Render Resolution"
-    const scale = isMobile ? 0.5 : 1.0;
+    const scale = isMobile ? 1.0 : 1.0;
     const renderW = Math.floor(canvas.width * scale);
     const renderH = Math.floor(canvas.height * scale);
 
@@ -339,14 +359,10 @@ resizeCanvas();
 
 const aspect = canvas.width / canvas.height;
 camera.setPerspective(0.8, aspect, 0.1, 1000.0);
-// Set the Position from the image
-camera.transform.position.set(-218.541, 9.572, -209.676);
-
-// Set the Rotation from the image
-camera.transform.rotation.set(-0.694, 3.14, 0);
+camera.transform.position.set(-39.2, 1.8, -47);
+camera.transform.rotation.set(0.0, isMobile ? 3.24 : 3.22, 0);
 
 const size = 30.0;
-lightCamera.setOrthographic(-size, size, -size, size, 1.0, 100.0);
 
 // #endregion
 
@@ -359,14 +375,12 @@ Terrain.transform.scale.set(1, 0.4, 1);
 scene.push(Terrain);
 
 
-// ObjLoader.load(gl, './Assets/3D/house.obj').then(mesh => {
-//     // console.log(mesh);
-    
-//     const obj = new GameObject(renderer, , mesh, 'housee');
-//     obj.transform.position.set(-15, -2.1, 10);
-//     obj.transform.scale.set(10, 10, 10);
-//     scene.push(obj);
-// });
+ObjLoader.load(gl, './Assets/3D/Grass.obj').then(mesh => {
+    const obj = new GameObject(renderer, matGrassWave, mesh, 'GrassMain');
+    obj.transform.position.set(-220 , -5.5, -190);
+    obj.transform.scale.set(1, 1, 1);
+    scene.push(obj);
+});
 
 
 // #endregion
@@ -374,8 +388,11 @@ scene.push(Terrain);
 // #region Floating Objects Configuration
 
 const floatingSpawner = new FloatingObjectSpawner(gl, renderer, matBuoyancy, scene);
-const landSpawner = new LandObjectSpawner(gl, renderer, matTreeWave, scene, [], {
-    threshold: 0.425
+const landSpawner = new LandObjectSpawner(gl, renderer, matScene, scene, [], {
+    threshold: 0.425,
+    materials: {
+        TreeWave: matTreeWave
+    }
 });
 
 const oceanConfig = {
@@ -384,7 +401,7 @@ const oceanConfig = {
 };
 
 const floatingSpawnConfig = {
-    enabled: isMobile ? true : false,
+    enabled: true ,
     count: 50,
     seed: 68,
     bounds: {
@@ -432,14 +449,14 @@ if (floatingSpawnConfig.enabled) {
     });
 
     landSpawner.setSeed(floatingSpawnConfig.seed);
-    // landSpawner.spawnMany(
-    //     150,
-    //     floatingSpawnConfig.bounds,
-    //     -11.0
-    // ).then(spawned => {
-    //     landObjects = spawned;
-    //     console.log(`Spawned ${spawned.length} land objects with seed ${floatingSpawnConfig.seed}`);
-    // });
+    landSpawner.spawnMany(
+        320,
+        floatingSpawnConfig.bounds,
+        -11.0
+    ).then(spawned => {
+        landObjects = spawned;
+        console.log(`Spawned ${spawned.length} land objects with seed ${floatingSpawnConfig.seed}`);
+    });
 }
 
 // #endregion
@@ -447,28 +464,6 @@ if (floatingSpawnConfig.enabled) {
 // #region Additional Scene Objects
 
 // Load Mobile Ships
-
-if (isMobile) 
-{
-    floatingSpawner.setSeed(3);
-    ObjLoader.load(gl, './Assets/3D/Floating/ship-pirate-small.obj').then(mesh => {
-        for (let i = 0; i < 5; i++) {
-            const obj = new GameObject(renderer, matBuoyancy, mesh, 'Barrel');
-            obj.transform.position.set(
-                -25 + (floatingSpawner.seededRandom()-0.5) * 45, 
-                -6.5, 
-                80 + (floatingSpawner.seededRandom()-0.5) * 45
-        );
-        obj.transform.rotation.set(
-            0, 
-            (floatingSpawner.seededRandom()-0.5) * 3.14*2, 
-            0
-        );
-        obj.transform.scale.set(1, 1, 1);
-        scene.push(obj);
-    }
-});
-}
 
 // #endregion
 
@@ -479,75 +474,75 @@ let meshLOD1 = new HexGridMesh(gl, 255, 255, 1.0)
 const centerObj = new GameObject(renderer, matWater, meshLOD1, `Water Floor [0,0]`);
 centerObj.transform.position.set(-(255 * Math.sqrt(3)/2), -6.5, -(255 * 1.5/2));
 centerObj.transform.scale.set(1, 1, 1);
-// scene.push(centerObj);
+scene.push(centerObj);
 CenterLOD = centerObj;
 
 
 
 
 
-// Promise.all([
-//     ObjLoader.load(gl, './Assets/3D/LOD1.obj'),
-//     ObjLoader.load(gl, './Assets/3D/LOD2.obj'),
-//     ObjLoader.load(gl, './Assets/3D/LOD3.obj')
-// ]).then(([meshLOD1, meshLOD2, meshLOD3]) => {
-//     const offset = 80;
-//     const yPos = -6.5;
-//     const scale = 50;
-//     const radius = 5;
+Promise.all([
+    ObjLoader.load(gl, './Assets/3D/LOD1.obj'),
+    ObjLoader.load(gl, './Assets/3D/LOD2.obj'),
+    ObjLoader.load(gl, './Assets/3D/LOD3.obj')
+]).then(([meshLOD1, meshLOD2, meshLOD3]) => {
+    const offset = 80;
+    const yPos = -6.5;
+    const scale = 50;
+    const radius = 5;
     
 
-//     // Mobile: LOD2 center, LOD3 everything else
-//     // Desktop: LOD1 center, LOD2 mid ring, LOD3 outer
-//     const LOD1_RADIUS = isMobile ? 1.0 : 0.0;
-//     const LOD2_RADIUS = isMobile ? -1 : 5.0;
+    // Mobile: LOD2 center, LOD3 everything else
+    // Desktop: LOD1 center, LOD2 mid ring, LOD3 outer
+    const LOD1_RADIUS = isMobile ? 1.0 : 0.0;
+    const LOD2_RADIUS = isMobile ? -1 : 3.0;
 
-//     const centerMesh = isMobile ? meshLOD2 : meshLOD1;
-//     const centerLabel = isMobile ? 'LOD2' : 'LOD1';
+    const centerMesh = isMobile ? meshLOD2 : meshLOD1;
+    const centerLabel = isMobile ? 'LOD2' : 'LOD1';
 
-//     // Center water mesh
-//     const centerObj = new GameObject(renderer, matWater, centerMesh, `Water Floor [0,0] ${centerLabel}`);
-//     centerObj.transform.position.set(-(255 * Math.sqrt(3)/2), yPos-0.5, -(255 * 1.5/2));
-//     centerObj.transform.scale.set(1, 1, 1);
-//     scene.push(centerObj);
-//     CenterLOD = centerObj;
+    // Center water mesh
+    const centerObj = new GameObject(renderer, matWater, centerMesh, `Water Floor [0,0] ${centerLabel}`);
+    centerObj.transform.position.set(-(255 * Math.sqrt(3)/2), yPos-0.5, -(255 * 1.5/2));
+    centerObj.transform.scale.set(1, 1, 1);
+    scene.push(centerObj);
+    CenterLOD = centerObj;
 
-//     if (isMobile) {
-//         // Triangle/FOV shape for mobile
-//         for (let z = 0; z <= radius; z++) {
-//             for (let x = -z; x <= z; x++) {
-//                 if (x === 0 && z === 0) continue;
+    if (isMobile) {
+        // Triangle/FOV shape for mobile
+        for (let z = 0; z <= radius; z++) {
+            for (let x = -z; x <= z; x++) {
+                if (x === 0 && z === 0) continue;
 
-//                 const obj = new GameObject(renderer, matWater, meshLOD3, `Water Floor [${x},${z}] LOD3`);
-//                 centerObj.transform.add(obj.transform);
-//                 obj.transform.setGlobalPosition(x * offset, yPos-0.5, z * offset);
-//                 obj.transform.scale.set(scale, scale, scale);
+                const obj = new GameObject(renderer, matWater, meshLOD3, `Water Floor [${x},${z}] LOD3`);
+                centerObj.transform.add(obj.transform);
+                obj.transform.setGlobalPosition(x * offset, yPos-0.5, z * offset);
+                obj.transform.scale.set(scale, scale, scale);
 
-//             }
-//         }
-//     } else {
-//         // Full grid for desktop
-//         for (let x = -radius; x <= radius; x++) {
-//             for (let z = -radius; z <= radius; z++) {
-//                 if (x === 0 && z === 0) continue;
+            }
+        }
+    } else {
+        // Full grid for desktop
+        for (let x = -radius; x <= radius; x++) {
+            for (let z = -radius; z <= radius; z++) {
+                if (x === 0 && z === 0) continue;
 
-//                 const dist = Math.sqrt(x * x + z * z);
-//                 const mesh = dist <= LOD1_RADIUS ? meshLOD1 
-//                     : dist <= LOD2_RADIUS ? meshLOD2 
-//                     : meshLOD3;
-//                 const lodLevel = dist <= LOD1_RADIUS ? 1 
-//                     : dist <= LOD2_RADIUS ? 2 
-//                     : 3;
+                const dist = Math.sqrt(x * x + z * z);
+                const mesh = dist <= LOD1_RADIUS ? meshLOD1 
+                    : dist <= LOD2_RADIUS ? meshLOD2 
+                    : meshLOD3;
+                const lodLevel = dist <= LOD1_RADIUS ? 1 
+                    : dist <= LOD2_RADIUS ? 2 
+                    : 3;
 
-//                 const obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}] LOD${lodLevel}`);
-//                 centerObj.transform.add(obj.transform);
-//                 obj.transform.setGlobalPosition(x * offset, yPos, z * offset);
-//                 obj.transform.scale.set(scale, scale, scale);
+                const obj = new GameObject(renderer, matWater, mesh, `Water Floor [${x},${z}] LOD${lodLevel}`);
+                centerObj.transform.add(obj.transform);
+                obj.transform.setGlobalPosition(x * offset, yPos, z * offset);
+                obj.transform.scale.set(scale, scale, scale);
 
-//             }
-//         }
-//     }
-// });
+            }
+        }
+    }
+});
 
 // #endregion
 
@@ -566,7 +561,6 @@ const game = {
     gl,
     scene,
     camera,
-    lightCamera,
     renderer,
     renderQueue,
     materials,
@@ -638,7 +632,7 @@ game.respawnWithSeed = (seed) => {
     );
     floatingObjects = spawned;
     landObjects = landSpawner.spawnMany(
-        120,
+        320,
         floatingSpawnConfig.bounds,
         -11.0
     );
@@ -730,6 +724,7 @@ function loop(now) {
     matWater.setUniforms({ 'uTime': Time.time });
     matBuoyancy.setUniforms({ 'uTime': Time.time });
     matTreeWave.setUniforms({ 'uTime': Time.time });
+    matGrassWave.setUniforms({ 'uTime': Time.time });
     matSkybox.setUniforms({ 'uTime': Time.time });
     
     // Update light direction
@@ -744,7 +739,9 @@ function loop(now) {
             lightDir[0] = v[0];
             lightDir[1] = v[1];
             lightDir[2] = v[2];
+            
         }
+        lightingPass.lightDir = new Vector3(lightDir[0], lightDir[1], lightDir[2] );
     }
 
     camera.updateView();

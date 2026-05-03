@@ -4,16 +4,14 @@ import { Matrix } from '../../Math/Matrix.js';
 export class SkyboxPass extends ScreenRenderPass {
     constructor(gl, width, height, material, target = null, name = 'Skybox Pass') {
         super(gl, width, height, material, target, name);
-        this.clearColor = null; // Do not clear previous passes!
-        this.clearDepth = false; // Do not clear depth
+        this.clearColor = null;
+        this.clearDepth = false; 
         
-        // Pre-allocate matrix buffers to avoid per-frame allocations
         this._camViewProj = new Float32Array(16);
         this._invCamViewProj = new Float32Array(16);
     }
 
     setCamera(camera) {
-        // Reuse pre-allocated buffers instead of creating new ones
         Matrix.multiply(this._camViewProj, camera.projectionMatrix, camera.viewMatrix);
         Matrix.invert(this._invCamViewProj, this._camViewProj);
 

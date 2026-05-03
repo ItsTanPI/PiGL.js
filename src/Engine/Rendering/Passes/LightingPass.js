@@ -82,19 +82,4 @@ export class LightingPass extends ScreenRenderPass {
             'uCameraPos': [camPos.x, camPos.y, camPos.z]
         });
     }
-
-    setMatrices(invViewProj, lightSpaceParams) {
-        this.material.setUniforms({
-            'uInverseViewProjection': invViewProj,
-            'uLightSpaceMatrix': lightSpaceParams
-        })
-    }
-
-    setLight(direction, color, ambient) {
-        this.material.setUniforms({
-            'uLightDir': direction,
-            'uLightColor': color,
-            'uAmbient': ambient
-        });
-    }
 }

@@ -76,7 +76,7 @@ export class InspectorWindow {
             perspFolder.add(obj, 'fov', 0.1, 3.14).step(0.01).name('FOV').onChange(() => obj.updateProjection());
             
             const orthoFolder = camFolder.addFolder('Orthographic');
-            orthoFolder.add(obj, 'orthoSize', 0.1, 100.0).step(1.0).name('Size (Half Height)').onChange(() => obj.updateProjection());
+            orthoFolder.add(obj, 'orthoSize', 0.1, 1000.0).step(0.01).name('Size (Half Height)').onChange(() => obj.updateProjection());
 
             camFolder.add(obj, 'near', 0.01, 10.0).step(0.01).name('Near Plane').onChange(() => obj.updateProjection());
             camFolder.add(obj, 'far', 10.1, 1000.0).step(1.0).name('Far Plane').onChange(() => obj.updateProjection());

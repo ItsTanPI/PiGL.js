@@ -14,24 +14,18 @@ export class HexGridMesh extends Mesh {
     /**
      * Helper function to get terrain color based on normalized height
      */
-        static terrainColor(v) {
-            if (v <= 0.3)  return [14/255,  54/255,  124/255];
-            // if (v <= 0.35) return [30/255,  80/255,  200/255];
-            // if (v <= 0.4)  return [54/255,  130/255, 220/255];
-            if (v <= 0.4)  return [234/255, 191/255, 145/255]; 
-            // return [97/255, 198/255, 128/255];
-            return [234/255, 191/255, 145/255]
-        }
-
-    static terrainValue(v) {
-        if (v <= 0.1)  return  20/255;
-        if (v <= 0.3)  return  37/255;
-        // if (v <= 0.45)   return  180/255 + v;
-        // if (v <= 0.)  return  230/255;
-        return 180/255;
+    static terrainColor(v) {
+        if (v <= 0.3) return [14 / 255, 54 / 255, 124 / 255];
+        if (v <= 0.4) return [234 / 255, 191 / 255, 145 / 255];
+        return [112 / 255, 224 / 255, 145 / 255];
     }
 
-    
+    static terrainValue(v) {
+        if (v <= 0.3) return 20 / 255;
+        // if (v <= 0.3) return 37 / 255;
+        return (180 / 255);
+    }
+
     exportOBJ(filename, vertices, uvs, normals, indices) {
         let obj = '';
 
@@ -74,172 +68,264 @@ export class HexGridMesh extends Mesh {
         const hSpacing = radius * Math.sqrt(3);
         const vSpacing = radius * 1.5;
 
-        const totalW = cols * hSpacing;   // 255 * 1.732 = 441.67
-        const totalH = rows * vSpacing;   // 255 * 1.5   = 382.5
-        // ── 1. Build vertex grid ─────────────────────────────────────────
-        // vert_map[(row, col)] = index into vertPos array
-        const vertPos = [];   // [x, y, z,  x, y, z, ...]
-        const vertMap = {};   // key: "row_col" -> index
-        const vertCol = [];   // [r, g, b,  r, g, b, ...]
-        var c = 0;
-        // Create noise instance for height mapping
+        const totalW = cols * hSpacing;
+        const totalH = rows * vSpacing;
+        const vertPos = [];
+        const vertMap = {};
+        const vertCol = [];
         const noise = CONTINENT;
-        let minHeight = Infinity, maxHeight = -Infinity;
-        let y = 0;
-        // First pass: collect heights to find min/max
         const heightMap = {};
+        let y = 0;
+
         for (let row = 0; row <= rows; row++) {
-            const xOffset = (row % 2 !== 0) ? hSpacing / 2 : 0;
+            const xOffset = row % 2 !== 0 ? hSpacing / 2 : 0;
+
             for (let col = 0; col <= cols; col++) {
                 const x = col * hSpacing + xOffset;
                 const z = row * vSpacing;
                 const noiseValue = noise.getValue(x, z, 0);
-                if(isTer)
-                {
-                   y = (HexGridMesh.terrainValue(noiseValue)) * 20;
-                   if (HexGridMesh.terrainValue(noiseValue) >= 0.7) c++;
-                }   
-    
+
+                if (isTer) {
+                    y = HexGridMesh.terrainValue(noiseValue) * 20;
+                }
+
                 heightMap[`${row}_${col}`] = y;
-                minHeight = Math.min(minHeight, y);
-                maxHeight = Math.max(maxHeight, y);
             }
         }
-        
-        // Second pass: create vertices with colors based on normalized height
+
         for (let row = 0; row <= rows; row++) {
-            const xOffset = (row % 2 !== 0) ? hSpacing / 2 : 0;
+            const xOffset = row % 2 !== 0 ? hSpacing / 2 : 0;
+
             for (let col = 0; col <= cols; col++) {
                 const x = col * hSpacing + xOffset;
                 const z = row * vSpacing;
                 y = heightMap[`${row}_${col}`];
-                
-                // Normalize height to 0-1 range
-                const heightRange = maxHeight - minHeight || 1;
-                const normalizedHeight = (y - minHeight) / heightRange;
-                
-                // Get color based on height
                 const noiseValue = noise.getValue(x, z, 0);
-                
                 const color = HexGridMesh.terrainColor(noiseValue);
-                
+
                 vertMap[`${row}_${col}`] = vertPos.length / 3;
-                vertPos.push(x, y, z);                
+                vertPos.push(x, y, z);
                 vertCol.push(color[0], color[1], color[2]);
             }
         }
+
         function idx(row, col) {
             return vertMap[`${row}_${col}`] ?? -1;
         }
 
-        // ── 2. Build triangle index list ─────────────────────────────────
         const indices = [];
 
         function isBorderOrNextToBorder(row, col) {
-        for (let dr = -3; dr <= 3; dr++) {
-            for (let dc = -3; dc <= 3; dc++) {
-                const r = row + dr;
-                const c = col + dc;
-                const yTL = heightMap[`${r}_${c}`];
-                const yTR = heightMap[`${r}_${c+1}`];
-                const bMcol = (r % 2 === 0) ? c : c + 1;
-                const bLcol = (r % 2 === 0) ? c - 1 : c;
-                const yBM = heightMap[`${r+1}_${bMcol}`];
-                const yBL = heightMap[`${r+1}_${bLcol}`];
-                if (yTL === undefined || yTR === undefined || yBM === undefined || yBL === undefined) continue;
-                if (!(yTL === yTR && yTR === yBM && yBM === yBL)) return true;
+            for (let dr = -3; dr <= 3; dr++) {
+                for (let dc = -3; dc <= 3; dc++) {
+                    const r = row + dr;
+                    const c = col + dc;
+                    const yTL = heightMap[`${r}_${c}`];
+                    const yTR = heightMap[`${r}_${c + 1}`];
+                    const bMcol = r % 2 === 0 ? c : c + 1;
+                    const bLcol = r % 2 === 0 ? c - 1 : c;
+                    const yBM = heightMap[`${r + 1}_${bMcol}`];
+                    const yBL = heightMap[`${r + 1}_${bLcol}`];
+
+                    if (yTL === undefined || yTR === undefined || yBM === undefined || yBL === undefined) {
+                        continue;
+                    }
+
+                    if (!(yTL === yTR && yTR === yBM && yBM === yBL)) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        function buildOptimizedIndices() {
+            let step = 2;
+
+            for (let iter = 0; iter < 2; iter++) {
+                indices.length = 0;
+                const offset = iter % 2 === 0 ? 0 : step / 2;
+
+                for (let row = 0; row < rows; row += step) {
+                    const columnOffset = (row / step) % 2 === 0 ? offset : offset + step / 2;
+
+                    for (let col = columnOffset; col < cols; col += step) {
+                        const v00 = idx(row, col);
+                        const v02 = idx(row, col + step);
+                        const v21 = idx(row + step, col + step / 2);
+
+                        if (
+                            v00 !== -1 &&
+                            v02 !== -1 &&
+                            v21 !== -1 &&
+                            heightMap[`${row}_${col}`] === heightMap[`${row}_${col + step}`] &&
+                            heightMap[`${row}_${col}`] === heightMap[`${row + step}_${col + step / 2}`]
+                        ) {
+                            indices.push(v00, v21, v02);
+                        }
+
+                        const v01 = idx(row, col + step);
+                        const v20 = idx(row + step, col + step / 2);
+                        const v22 = idx(row + step, col + step / 2 + step);
+
+                        if (
+                            v01 !== -1 &&
+                            v20 !== -1 &&
+                            v22 !== -1 &&
+                            heightMap[`${row}_${col + step}`] === heightMap[`${row + step}_${col + step / 2}`] &&
+                            heightMap[`${row}_${col + step}`] === heightMap[`${row + step}_${col + step / 2 + step}`]
+                        ) {
+                            indices.push(v01, v20, v22);
+                        }
+                    }
+                }
+
+                step *= 2;
             }
         }
-        return false;
-    }
 
-    function unsubdivide(indices, vertPos, vertMap, heightMap, rows, cols, iterations) {
-        function idx(row, col) {
-            return vertMap[`${row}_${col}`] ?? -1;
-        }
+        function buildHeightOptimizedIndices() {
+            let step = 1;
 
-        let step = 2;
-        for (let iter = 0; iter < iterations; iter++) {
-            indices.length = 0;
-            const offset = (iter % 2 === 0) ? 0 : step / 2;
-            for (let row = 0; row < rows; row += step) {
-                const ccc = ((row / step) % 2 === 0) ? offset : offset + step / 2;
-                for (let col = ccc; col < cols; col += step) {
-                    // add this check at top of col loop
-                    // if (isBorderOrNextToBorder(row, col)) continue;
-                    const v00 = idx(row,        col);
-                    const v02 = idx(row,        col + step);
-                    const v21 = idx(row + step, col + step / 2);
-                    if (v00 !== -1 && v02 !== -1 && v21 !== -1
-                        && heightMap[`${row}_${col}`] === heightMap[`${row}_${col+step}`]
-                        && heightMap[`${row}_${col}`] === heightMap[`${row+step}_${col+step/2}`])
-                        indices.push(v00, v21, v02);
+            for (let iter = 0; iter < 2; iter++) {
+                indices.length = 0;
+                const offset = iter % 2 === 0 ? 0 : step / 2;
 
+                for (let row = 0; row < rows; row += step) {
+                    const columnOffset = (row / step) % 2 === 0 ? offset : offset + step / 2;
 
-                    const v01 = idx(row,        col + step);
-                    const v20 = idx(row + step, col + step / 2);
-                    const v22 = idx(row + step, col + step / 2 + step);
-                    if (v01 !== -1 && v20 !== -1 && v22 !== -1
-                        && heightMap[`${row}_${col+step}`] === heightMap[`${row+step}_${col+step/2}`]
-                        && heightMap[`${row}_${col+step}`] === heightMap[`${row+step}_${col+step/2+step}`])
-                        indices.push(v01, v20, v22);
-                                    }
-            }
-            step *= 2;
-        }
-    }
-    // Pass 1 — unsubdivide flat interior first
-    unsubdivide(indices, vertPos, vertMap, heightMap, rows, cols, 2);
+                    for (let col = columnOffset; col < cols; col += step) {
+                        const v00 = idx(row, col);
+                        const v02 = idx(row, col + step);
+                        const v21 = idx(row + step, col + step / 2);
 
-    // Pass 2 — borders (height changes)
-    for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-            const tL = idx(row, col);
-            const tR = idx(row, col + 1);
-            const bMcol = (row % 2 === 0) ? col : col + 1;
-            const bLcol = (row % 2 === 0) ? col - 1 : col;
-            const bM = idx(row + 1, bMcol);
-            const bL = idx(row + 1, bLcol);
+                        if (
+                            v00 !== -1 &&
+                            v02 !== -1 &&
+                            v21 !== -1 &&
+                            !(heightMap[`${row}_${col}`] === heightMap[`${row}_${col + step}`] &&
+                            heightMap[`${row}_${col}`] === heightMap[`${row + step}_${col + step / 2}`])
+                        ) {
+                            indices.push(v00, v21, v02);
+                        }
 
-            const yTL = heightMap[`${row}_${col}`];
-            const yTR = heightMap[`${row}_${col+1}`];
-            const yBM = heightMap[`${row+1}_${bMcol}`];
-            const yBL = heightMap[`${row+1}_${bLcol}`];
+                        const v01 = idx(row, col + step);
+                        const v20 = idx(row + step, col + step / 2);
+                        const v22 = idx(row + step, col + step / 2 + step);
 
-            const isBorder = !(yTL === yTR && yTR === yBM && yBM === yBL);
-            if (isBorderOrNextToBorder(row, col)) {
-                if (tL !== -1 && tR !== -1 && bM !== -1) indices.push(tL, bM, tR);
-                if (tL !== -1 && bL !== -1 && bM !== -1) indices.push(tL, bL, bM);
+                        if (
+                            v01 !== -1 &&
+                            v20 !== -1 &&
+                            v22 !== -1 &&
+                            !(heightMap[`${row}_${col + step}`] === heightMap[`${row + step}_${col + step / 2}`] &&
+                            heightMap[`${row}_${col + step}`] === heightMap[`${row + step}_${col + step / 2 + step}`])
+                        ) {
+                            indices.push(v01, v20, v22);
+                        }
+                    }
+                }
+
+                step *= 2;
             }
         }
-    }
 
-        // for (let row = 0; row < rows; row++) {
-        //     for (let col = 0; col < cols; col++) {
-        //         const tL = idx(row,     col);
-        //         const tR = idx(row,     col + 1);
+        function buildRegularIndices() {
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const tL = idx(row, col);
+                    const tR = idx(row, col + 1);
+                    const bMcol = row % 2 === 0 ? col : col + 1;
+                    const bLcol = row % 2 === 0 ? col - 1 : col;
+                    const bM = idx(row + 1, bMcol);
+                    const bL = idx(row + 1, bLcol);
 
-        //         const bMcol = (row % 2 === 0) ? col     : col + 1;
-        //         const bLcol = (row % 2 === 0) ? col - 1 : col;
+                    if (tL !== -1 && tR !== -1 && bM !== -1) {
+                        indices.push(tL, bM, tR);
+                    }
 
-        //         const bM = idx(row + 1, bMcol);
-        //         const bL = idx(row + 1, bLcol);
+                    if (tL !== -1 && bL !== -1 && bM !== -1) {
+                        indices.push(tL, bL, bM);
+                    }
+                }
+            }
+        }
 
-        //         // Triangle 1: upper triangle (tL, tR, bM)
-        //         // Even rows:  tL top-left, tR top-right, bM bottom-center → CW = tL, bM, tR
-        //         // Odd rows:   offset shifts bM right → CW = tL, tR, bM
-        //         if (tL !== -1 && tR !== -1 && bM !== -1) {
-        //             indices.push(tL, bM, tR);
-        //         }
+        if (!isTer) {
+            buildRegularIndices();
+        } else {
+            buildOptimizedIndices();
+            
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const tL = idx(row, col);
+                    const tR = idx(row, col + 1);
+                    const bMcol = row % 2 === 0 ? col : col + 1;
+                    const bLcol = row % 2 === 0 ? col - 1 : col;
+                    const bM = idx(row + 1, bMcol);
+                    const bL = idx(row + 1, bLcol);
 
-        //         // Triangle 2: lower triangle (tL, bL, bM)
-        //         // Even rows:  bL is col-1 so bM is to the right of bL → CW = tL, bL, bM
-        //         // Odd rows:   bL is col so bM is to the right → CW = tL, bM, bL
-        //         if (tL !== -1 && bL !== -1 && bM !== -1) {
-        //             indices.push(tL, bL, bM);
-        //         }
-        //     }
-        // }
+                    if (isBorderOrNextToBorder(row, col)) {
+                        if (tL !== -1 && tR !== -1 && bM !== -1) indices.push(tL, bM, tR);
+                        if (tL !== -1 && bL !== -1 && bM !== -1) indices.push(tL, bL, bM);
+                    }
+                }
+            }
+        }
+
+        function removeUnusedVertices() {
+            if (indices.length === 0) {
+                vertPos.length = 0;
+                vertCol.length = 0;
+                return;
+            }
+
+            const used = new Set(indices);
+            const remap = new Map();
+            const compactPos = [];
+            const compactCol = [];
+            let newIndex = 0;
+
+            for (let oldIndex = 0; oldIndex < vertPos.length / 3; oldIndex++) {
+                if (!used.has(oldIndex)) {
+                    continue;
+                }
+
+                remap.set(oldIndex, newIndex);
+
+                compactPos.push(
+                    vertPos[oldIndex * 3],
+                    vertPos[oldIndex * 3 + 1],
+                    vertPos[oldIndex * 3 + 2]
+                );
+
+                compactCol.push(
+                    vertCol[oldIndex * 3],
+                    vertCol[oldIndex * 3 + 1],
+                    vertCol[oldIndex * 3 + 2]
+                );
+
+                newIndex++;
+            }
+
+            for (let i = 0; i < indices.length; i++) {
+                indices[i] = remap.get(indices[i]);
+            }
+
+            vertPos.length = compactPos.length;
+            vertCol.length = compactCol.length;
+
+            for (let i = 0; i < compactPos.length; i++) {
+                vertPos[i] = compactPos[i];
+            }
+
+            for (let i = 0; i < compactCol.length; i++) {
+                vertCol[i] = compactCol[i];
+            }
+        }
+
+        removeUnusedVertices();
+
         // ── 3. UVs ───────────────────────────────────────────────────────
         const uvs = [];
         for (let i = 0; i < vertPos.length / 3; i++) {
