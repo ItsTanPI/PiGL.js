@@ -375,12 +375,12 @@ Terrain.transform.scale.set(1, 0.4, 1);
 scene.push(Terrain);
 
 
-ObjLoader.load(gl, './Assets/3D/Grass.obj').then(mesh => {
-    const obj = new GameObject(renderer, matGrassWave, mesh, 'GrassMain');
-    obj.transform.position.set(-220 , -5.5, -190);
-    obj.transform.scale.set(1, 1, 1);
-    scene.push(obj);
-});
+// ObjLoader.load(gl, './Assets/3D/Grass.obj').then(mesh => {
+//     const obj = new GameObject(renderer, matGrassWave, mesh, 'GrassMain');
+//     obj.transform.position.set(-220 , -5.5, -190);
+//     obj.transform.scale.set(1, 1, 1);
+//     scene.push(obj);
+// });
 
 
 // #endregion

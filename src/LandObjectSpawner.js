@@ -46,7 +46,7 @@ export class LandObjectSpawner {
         const rocksThreshold = (rawValue) => rawValue > 0.5;  // Rocks on higher land (noise > 0.5)
         const rocksThresholdIsland = (rawValue) => rawValue <= 0.2;  // Rocks on higher land (noise > 0.5)
 
-        const structureThreshold = (rawValue) => rawValue >= 0.43 && rawValue <= 0.45;  // Structures on land (noise > 0.45)
+        const structureThreshold = (rawValue) => rawValue >= 0.3 && rawValue <= 0.4;  // Structures on land (noise > 0.45)
         const defaultThreshold = (rawValue) => rawValue > this.threshold;  // Default land threshold
 
         // Catalog in FloatingObjectSpawner-style with weighted probabilities.
@@ -77,25 +77,24 @@ export class LandObjectSpawner {
             // { file: 'rocks-sand-c.obj', name: 'Rocks Sand C', rotationMode: 'y-only', scale: 1.0, scaleRange: [0.80, 3.40], yOffset: 0.0, probability: 0.017, thresholdCallback: rocksThreshold },
 
 
-            // { file: 'rocks-a.obj', name: 'Rocks A Island', rotationMode: 'y-only', scale: 1.0, scaleRange: [3.75, 10.45], yOffset: 0.0, probability: 0.001, thresholdCallback: rocksThresholdIsland },
-            // { file: 'rocks-b.obj', name: 'Rocks B Island', rotationMode: 'y-only', scale: 1.0, scaleRange: [3.75, 10.45], yOffset: 0.0, probability: 0.001, thresholdCallback: rocksThresholdIsland },
-            // { file: 'rocks-c.obj', name: 'Rocks C Island', rotationMode: 'y-only', scale: 1.0, scaleRange: [3.75, 10.50], yOffset: 0.0, probability: 0.001, thresholdCallback: rocksThresholdIsland },
-            // { file: 'rocks-sand-a.obj', name: 'Rocks Sand A Island', rotationMode: 'y-only', scale: 1.0, scaleRange: [3.80, 10.40], yOffset: 0.0, probability: 0.001, thresholdCallback: rocksThresholdIsland },
-            // { file: 'rocks-sand-b.obj', name: 'Rocks Sand B Island', rotationMode: 'y-only', scale: 1.0, scaleRange: [3.80, 10.40], yOffset: 0.0, probability: 0.001, thresholdCallback: rocksThresholdIsland },
-            // { file: 'rocks-sand-c.obj', name: 'Rocks Sand C Island', rotationMode: 'y-only', scale: 1.0, scaleRange: [3.80, 10.40], yOffset: 0.0, probability: 0.001, thresholdCallback: rocksThresholdIsland },
+            { file: 'rocks-a.obj', name: 'Rocks A Island', rotationMode: 'y-only', scale: 1.0, scaleRange: [3.75, 10.45], yOffset: 0.0, probability: 0.001, thresholdCallback: rocksThresholdIsland },
+            { file: 'rocks-b.obj', name: 'Rocks B Island', rotationMode: 'y-only', scale: 1.0, scaleRange: [3.75, 10.45], yOffset: 0.0, probability: 0.001, thresholdCallback: rocksThresholdIsland },
+            { file: 'rocks-c.obj', name: 'Rocks C Island', rotationMode: 'y-only', scale: 1.0, scaleRange: [3.75, 10.50], yOffset: 0.0, probability: 0.001, thresholdCallback: rocksThresholdIsland },
+            { file: 'rocks-sand-a.obj', name: 'Rocks Sand A Island', rotationMode: 'y-only', scale: 1.0, scaleRange: [3.80, 10.40], yOffset: 0.0, probability: 0.001, thresholdCallback: rocksThresholdIsland },
+            { file: 'rocks-sand-b.obj', name: 'Rocks Sand B Island', rotationMode: 'y-only', scale: 1.0, scaleRange: [3.80, 10.40], yOffset: 0.0, probability: 0.001, thresholdCallback: rocksThresholdIsland },
+            { file: 'rocks-sand-c.obj', name: 'Rocks Sand C Island', rotationMode: 'y-only', scale: 1.0, scaleRange: [3.80, 10.40], yOffset: 0.0, probability: 0.001, thresholdCallback: rocksThresholdIsland },
 
-            // // Structures - spawn on land > 0.45
-            // { file: 'platform-planks.obj', name: 'Platform Planks', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.07, thresholdCallback: defaultThreshold },
-            // { file: 'ship-wreck.obj', name: 'Ship Wreck', rotationMode: '3d', scale: 1.0, yOffset: -1.0, probability: 0.1, thresholdCallback: structureThreshold },
-            // { file: 'tower-complete-small.obj', name: 'Tower Complete Small', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.06, thresholdCallback: structureThreshold },
-            // { file: 'tower-complete-large.obj', name: 'Tower Complete Large', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.06, thresholdCallback: structureThreshold },
-            // { file: 'structure-roof.obj', name: 'Structure Roof', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.1, thresholdCallback: defaultThreshold },
-            // { file: 'cannon-mobile.obj', name: 'Cannon Mobile', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.05, thresholdCallback: defaultThreshold },
-            // { file: 'house.obj', name: 'House', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.08, thresholdCallback: defaultThreshold },
+            // Structures - spawn on land > 0.45
+            { file: 'platform-planks.obj', name: 'Platform Planks', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.07, thresholdCallback: defaultThreshold },
+            { file: 'ship-wreck.obj', name: 'Ship Wreck', rotationMode: '3d', scale: 1.0, yOffset: -1.0, probability: 0.02, thresholdCallback: structureThreshold },
+            { file: 'tower-complete-small.obj', name: 'Tower Complete Small', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.01, thresholdCallback: structureThreshold },
+            { file: 'tower-complete-large.obj', name: 'Tower Complete Large', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.01, thresholdCallback: structureThreshold },
+            { file: 'structure-roof.obj', name: 'Structure Roof', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.01, thresholdCallback: defaultThreshold },
+            { file: 'cannon-mobile.obj', name: 'Cannon Mobile', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.05, thresholdCallback: defaultThreshold },
+            { file: 'house.obj', name: 'House', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.08, thresholdCallback: defaultThreshold },
 
-
-            // // Misc
-            // { file: 'hole.obj', name: 'Hole', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.1, thresholdCallback: defaultThreshold },
+            // Misc
+            // { file: 'hole.obj', name: 'Hole', rotationMode: 'y-only', scale: 1.0,    yOffset: 0.0, probability: 0.1, thresholdCallback: defaultThreshold },
             // { file: 'mast.obj', name: 'Mast', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.3, thresholdCallback: defaultThreshold },
             // { file: 'mast-ropes.obj', name: 'Mast Ropes', rotationMode: 'y-only', scale: 1.0, yOffset: 0.0, probability: 0.3, thresholdCallback: defaultThreshold }
         ];
